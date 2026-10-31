@@ -198,7 +198,7 @@ const norm=()=>{S.emps=S.emps||[];S.att=S.att||{};S.exp=S.exp||[];S.ded=S.ded||[
 const docRef=()=>db.collection('app_state').doc(USER.uid);
 const cloudSave=()=>{if(!fbOn||!USER)return;setSync('Saving…');clearTimeout(tmr);tmr=setTimeout(async()=>{try{await docRef().set({json:JSON.stringify(S),updated:Date.now()});setSync('✓ Synced to cloud')}catch(e){setSync('⚠ Not synced - check connection')}},700)};
 const save=()=>{try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}cloudSave()};
-let M=(()=>{const t=new Date();let y=t.getFullYear(),m=t.getMonth()+1;if(t.getDate()<16){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})(),tab='emp',IMP=null,EDIT=null;
+let M=(()=>{const t=new Date();let y=t.getFullYear(),m=t.getMonth()+1;if(t.getDate()<16){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})(),tab='emp',IMP=null,EDIT=null,DEDIT=null,AEDIT=null;
 const TABS=[['emp','👥 Employees'],['att','🗓️ Attendance'],['exp','🚗 Travel expenses'],['arr','➕ Arrears'],['ded','➖ Deductions'],['pay','📊 Payroll summary'],['slip','🧾 Salary slip']];
 const CY=['','P','A','H','HL','L','W'];
 const dim=()=>{const[y,m]=M.split('-').map(Number);return Math.round((Date.UTC(y,m,15)-Date.UTC(y,m-1,16))/864e5)+1};
@@ -210,6 +210,10 @@ const fmtD=t=>t.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'nu
 const sd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})};
 const dow=d=>dayDate(d).getDay();
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const isRec=x=>x.rec===undefined?(x.type==='Insurance'||x.type==='Advance/EMI'):!!x.rec;
+const dedActive=x=>isRec(x)?(x.date<=ce()&&(!x.end||x.end>=cs())):inCyc(x.date);
+const isRecA=x=>x.rec===undefined?true:!!x.rec;
+const arrActive=x=>isRecA(x)?(x.date<=ce()&&(!x.end||x.end>=cs())):inCyc(x.date);
 const dedAmt=(x,e)=>x.basis==='days'?Math.round(e.salary/30*x.val):x.val;
 const DT={'Late check-in':['days',0.5],'Penalty':['days',0.5],'Insurance':['amt',''],'Advance/EMI':['amt','']};
 const KL={'Late check-in':'Late<br>check-in','Advance/EMI':'Advance<br>/EMI'};
@@ -232,11 +236,11 @@ function calc(e){
   const gross=Math.round(e.salary/30*payable);
   const ax=S.exp.filter(x=>x.emp===e.id&&inCyc(x.date)&&x.status==='Approved');
   const trv=ax.reduce((s,x)=>s+x.amt,0);
-  const dls=S.ded.filter(x=>x.emp===e.id&&inCyc(x.date)),dby={};
+  const dls=S.ded.filter(x=>x.emp===e.id&&dedActive(x)),dby={};
   Object.keys(DT).forEach(k=>dby[k]=0);
   dls.forEach(x=>{dby[x.type]=(dby[x.type]||0)+dedAmt(x,e)});
   const ded=dls.reduce((s,x)=>s+dedAmt(x,e),0),absd=marked===0?0:Math.max(0,e.salary-gross);
-  const arr=S.arr.filter(x=>x.emp===e.id&&inCyc(x.date)).reduce((s,x)=>s+x.amt,0);
+  const arr=S.arr.filter(x=>x.emp===e.id&&arrActive(x)).reduce((s,x)=>s+x.amt,0);
   return{...c,unmarked:days-marked,payable,gross,arr,trv,ded,absd,tded:ded+absd,dby,km:Math.round(ax.reduce((s,x)=>s+(x.km||0),0)*100)/100,late:dls.filter(x=>x.type==='Late check-in').length,net:gross+arr+trv-ded};
 }
 
@@ -439,32 +443,44 @@ function slipPdf(list){try{
 
 function rArr(){
   if(!S.emps.length){$('#view').innerHTML=none();return}
-  const list=S.arr.filter(x=>inCyc(x.date)).sort((a,b)=>a.date<b.date?-1:1);
+  const ed=AEDIT&&S.arr.find(x=>x.id===AEDIT);
+  const list=S.arr.filter(arrActive).sort((a,b)=>a.date<b.date?-1:1);
   const tot=list.reduce((s,x)=>s+x.amt,0);
-  $('#view').innerHTML=`<div class="card"><h2 class="ct">Add arrear</h2><div class="row"><label>Employee<select id="ae">${opts()}</select></label><label>Date<input type="date" id="ad" value="${cs()}"></label><label class="wide">Reason<input id="an" placeholder="e.g. Salary arrear"></label><label>Amount (₹)<input id="aa" type="number" min="0"></label><button class="btn" id="addA">Add arrear</button></div><div class="note">Arrears are added to the employee’s earnings for the cycle that contains the entry date.</div></div>
-  <div class="card fit sc">${list.length?`<table><thead><tr><th>Date</th><th>Employee</th><th>Reason</th><th class="n">Amount</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td title="${x.date}">${sd(x.date)}</td><td>${esc(ename(x.emp))}</td><td>${esc(x.note)||'–'}</td><td class="n">${inr(x.amt)}</td><td><button class="btn d" data-da="${x.id}">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3">Total arrears</td><td class="n">${inr(tot)}</td><td></td></tr></tfoot></table>`:'<div class="empty">No arrears this cycle.</div>'}</div>`;
-  $('#addA').onclick=()=>{const a=parseFloat($('#aa').value),d=$('#ad').value;if(!(a>0)||!d)return;S.arr.push({id:uid(),emp:$('#ae').value,date:d,note:$('#an').value.trim(),amt:a});save();render()};
+  $('#view').innerHTML=`<div class="card"><h2 class="ct">${ed?'Edit arrear':'Add arrear'}</h2><div class="row"><label>Employee<select id="ae">${opts()}</select></label><label>Date / starts on<input type="date" id="ad" value="${ed?ed.date:cs()}"></label><label class="wide">Reason<input id="an" placeholder="e.g. Salary arrear" value="${esc(ed?ed.note:'')}"></label><label>Amount (₹)<input id="aa" type="number" min="0" value="${ed?ed.amt:''}"></label>
+  <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);flex:none"><input type="checkbox" id="ar" style="width:auto;min-height:0">Repeat every month</label>
+  <button class="btn" id="addA">${ed?'Save changes':'Add arrear'}</button>${ed?'<button class="btn s" id="canA">Cancel</button>':''}</div><div class="note">A repeating arrear is added to the employee’s earnings every month from its start date until you stop or delete it. <b>Stop</b> ends it from the cycle you are viewing (earlier months keep it). <b>Edit</b> changes it for every month from its start date. For a one-time arrear, untick “Repeat every month”. To change the amount from a new month, Stop the old entry and add a new one starting that month.</div></div>
+  <div class="card fit sc">${list.length?`<table><thead><tr><th>Date</th><th>Employee</th><th>Reason</th><th class="n">Amount</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td title="${x.date}">${sd(x.date)}</td><td>${esc(ename(x.emp))}</td><td>${esc(x.note)||'–'}${isRecA(x)?' <span class="note" style="margin:0">↻ monthly</span>':''}</td><td class="n">${inr(x.amt)}</td><td><button class="btn s" data-aedit="${x.id}">Edit</button> ${isRecA(x)?`<button class="btn s" data-astop="${x.id}">Stop</button> `:''}<button class="btn d" data-da="${x.id}">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3">Total arrears</td><td class="n">${inr(tot)}</td><td></td></tr></tfoot></table>`:'<div class="empty">No arrears this cycle.</div>'}</div>`;
+  if(ed){$('#ae').value=ed.emp;$('#ar').checked=isRecA(ed)}else $('#ar').checked=true;
+  $('#addA').onclick=()=>{const a=parseFloat($('#aa').value),d=$('#ad').value;if(!(a>0)||!d)return;
+    const o={emp:$('#ae').value,date:d,note:$('#an').value.trim(),amt:a,rec:$('#ar').checked};
+    if(ed)Object.assign(ed,o);else S.arr.push({id:uid(),...o});AEDIT=null;save();render()};
+  if(ed)$('#canA').onclick=()=>{AEDIT=null;render()};
 }
 
 function rDed(){
   if(!S.emps.length){$('#view').innerHTML=none();return}
   const em=id=>S.emps.find(e=>e.id===id);
-  const list=S.ded.filter(x=>inCyc(x.date)).sort((a,b)=>a.date<b.date?-1:1);
+  const ed=DEDIT&&S.ded.find(x=>x.id===DEDIT);
+  const list=S.ded.filter(dedActive).sort((a,b)=>a.date<b.date?-1:1);
   const amt=x=>em(x.emp)?dedAmt(x,em(x.emp)):0;
   const tot=list.reduce((s,x)=>s+amt(x),0);
-  $('#view').innerHTML=`<div class="card"><h2 class="ct">Add deduction</h2><div class="row">
-  <label>Employee<select id="de">${opts()}</select></label><label>Date<input type="date" id="dd" value="${cs()}"></label>
+  $('#view').innerHTML=`<div class="card"><h2 class="ct">${ed?'Edit deduction':'Add deduction'}</h2><div class="row">
+  <label>Employee<select id="de">${opts()}</select></label><label>Date / starts on<input type="date" id="dd" value="${ed?ed.date:cs()}"></label>
   <label>Type<select id="dt">${Object.keys(DT).map(k=>`<option>${k}</option>`).join('')}</select></label>
   <label>Deduct as<select id="db"><option value="days">Days of salary</option><option value="amt">Fixed amount (₹)</option></select></label>
   <label>Value<input id="dv" type="number" min="0" step="any"></label>
-  <label class="wide">Note<input id="dn"></label>
-  <button class="btn" id="addD">Add deduction</button></div>
-  <div class="note">Late check-in and Penalty default to 0.5 day of salary (daily rate = salary ÷ 30). Insurance and Advance/EMI are fixed amounts. You can change the basis or value for any entry.</div></div>
-  <div class="card fit sc">${list.length?`<table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Basis</th><th>Note</th><th class="n">Amount</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td title="${x.date}">${sd(x.date)}</td><td>${esc(ename(x.emp))}</td><td>${esc(x.type)}</td><td>${x.basis==='days'?x.val+' day(s)':'Fixed'}</td><td>${esc(x.note)||'–'}</td><td class="n">${inr(amt(x))}</td><td><button class="btn d" data-dd="${x.id}">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">Total deductions</td><td class="n">${inr(tot)}</td><td></td></tr></tfoot></table>`:'<div class="empty">No deductions this cycle.</div>'}</div>`;
-  const set=()=>{const d=DT[$('#dt').value];$('#db').value=d[0];$('#dv').value=d[1]};
-  $('#dt').onchange=set;set();
+  <label class="wide">Note<input id="dn" value="${esc(ed?ed.note:'')}"></label>
+  <label style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);flex:none"><input type="checkbox" id="dr" style="width:auto;min-height:0">Repeat every month</label>
+  <button class="btn" id="addD">${ed?'Save changes':'Add deduction'}</button>${ed?'<button class="btn s" id="canD">Cancel</button>':''}</div>
+  <div class="note">Insurance and Advance/EMI repeat every month from their start date until you stop or delete them. <b>Stop</b> ends it from the cycle you are viewing (earlier months keep it). <b>Edit</b> changes the entry for every month from its start date. To change the amount from a new month, Stop the old entry and add a new one starting that month. Late check-in and Penalty are one-time and default to 0.5 day of salary (daily rate = salary ÷ 30).</div></div>
+  <div class="card fit sc">${list.length?`<table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Basis</th><th>Note</th><th class="n">Amount</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td title="${x.date}">${sd(x.date)}</td><td>${esc(ename(x.emp))}</td><td>${esc(x.type)}${isRec(x)?' <span class="note" style="margin:0">↻ monthly</span>':''}</td><td>${x.basis==='days'?x.val+' day(s)':'Fixed'}</td><td>${esc(x.note)||'–'}</td><td class="n">${inr(amt(x))}</td><td><button class="btn s" data-dedit="${x.id}">Edit</button> ${isRec(x)?`<button class="btn s" data-dstop="${x.id}">Stop</button> `:''}<button class="btn d" data-dd="${x.id}">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">Total deductions</td><td class="n">${inr(tot)}</td><td></td></tr></tfoot></table>`:'<div class="empty">No deductions this cycle.</div>'}</div>`;
+  const set=()=>{const d=DT[$('#dt').value];$('#db').value=d[0];$('#dv').value=d[1];$('#dr').checked=isRec({type:$('#dt').value})};
+  $('#dt').onchange=set;
+  if(ed){$('#de').value=ed.emp;$('#dt').value=ed.type;$('#db').value=ed.basis;$('#dv').value=ed.val;$('#dr').checked=isRec(ed)}else set();
   $('#addD').onclick=()=>{const v=parseFloat($('#dv').value),d=$('#dd').value;if(!(v>0)||!d)return;
-    S.ded.push({id:uid(),emp:$('#de').value,date:d,type:$('#dt').value,basis:$('#db').value,val:v,note:$('#dn').value.trim()});save();render()};
+    const o={emp:$('#de').value,date:d,type:$('#dt').value,basis:$('#db').value,val:v,note:$('#dn').value.trim(),rec:$('#dr').checked};
+    if(ed)Object.assign(ed,o);else S.ded.push({id:uid(),...o});DEDIT=null;save();render()};
+  if(ed)$('#canD').onclick=()=>{DEDIT=null;render()};
 }
 
 function rPay(){
@@ -552,8 +568,12 @@ document.addEventListener('click',ev=>{
   if(t.dataset.fill){const a={};for(let d=1;d<=dim();d++)a[d]=dow(d)==0?'W':'P';S.att[t.dataset.fill+'|'+M+'|c']=a;save();return render()}
   if(t.dataset.st){const x=S.exp.find(x=>x.id===t.dataset.st);x.status=x.status==='Approved'?'Pending':'Approved';save();return render()}
   if(t.dataset.dx){S.exp=S.exp.filter(x=>x.id!==t.dataset.dx);save();return render()}
-  if(t.dataset.dd){S.ded=S.ded.filter(x=>x.id!==t.dataset.dd);save();return render()}
-  if(t.dataset.da){S.arr=S.arr.filter(x=>x.id!==t.dataset.da);save();return render()}
+  if(t.dataset.dedit){DEDIT=t.dataset.dedit;return render()}
+  if(t.dataset.dstop){const x=S.ded.find(x=>x.id===t.dataset.dstop);if(x){const last=iso(dayDate(0));if(x.date>last)S.ded=S.ded.filter(y=>y!==x);else x.end=last;save();render();toast('Stopped from this cycle onward')}return}
+  if(t.dataset.dd){const x=S.ded.find(x=>x.id===t.dataset.dd);if(x&&isRec(x)&&!confirm('This is a monthly deduction. Deleting removes it from ALL months, including past ones. Use Stop to end it from this cycle only.\n\nDelete anyway?'))return;S.ded=S.ded.filter(x=>x.id!==t.dataset.dd);save();return render()}
+  if(t.dataset.aedit){AEDIT=t.dataset.aedit;return render()}
+  if(t.dataset.astop){const x=S.arr.find(x=>x.id===t.dataset.astop);if(x){const last=iso(dayDate(0));if(x.date>last)S.arr=S.arr.filter(y=>y!==x);else x.end=last;save();render();toast('Stopped from this cycle onward')}return}
+  if(t.dataset.da){const x=S.arr.find(x=>x.id===t.dataset.da);if(x&&isRecA(x)&&!confirm('This is a monthly arrear. Deleting removes it from ALL months, including past ones. Use Stop to end it from this cycle only.\n\nDelete anyway?'))return;S.arr=S.arr.filter(x=>x.id!==t.dataset.da);save();return render()}
 });
 document.addEventListener('input',ev=>{const t=ev.target;if(t.dataset&&t.dataset.gnote!==undefined){S.notes['ALL|'+M]=t.value;save()}});
 const closeMenu=()=>{$('#drawer').classList.remove('on');$('#ov').classList.remove('on')};
