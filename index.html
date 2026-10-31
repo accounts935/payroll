@@ -1,0 +1,550 @@
+<title>Attendance &amp; Payroll</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: warm header band with a slide-out menu, content cards. Tables hug their content so no column is wider than its text. */
+:root{
+  --display:"Playfair Display",Georgia,"Times New Roman",serif;
+  --body:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --bg:#f4efe9;--surface:#fffdfb;--surface2:#f4efe9;--ink:#2b2522;--mute:#7a6e66;--line:#e4d9cf;
+  --accent:#a8452d;--accent-ink:#ffffff;--accent-soft:#f6e3dc;--zebra:#faf5f0;--hover:#f3e6dc;
+  --hero-a:#2b2522;--hero-m:#47291f;--hero-b:#a8452d;--on-hero:#ffffff;--on-hero-mute:#e9cfc4;--hero-dot:#ff9d80;
+  --ok:#1b7f4b;--okb:#dff3e8;--no:#b42318;--nob:#fde4e1;--hf:#8a5a00;--hfb:#fdf0cf;--lv:#1d5fa8;--lvb:#dcebfa;--wo:#555555;--wob:#e8eaee;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1c1815;--surface:#26201c;--surface2:#1c1815;--ink:#f0e8e0;--mute:#b3a69b;--line:#3a312b;
+  --accent:#e08a6f;--accent-ink:#1c1110;--accent-soft:#3a2520;--zebra:#2b241f;--hover:#352b25;
+  --ok:#6fd49b;--okb:#17382a;--no:#ff8f84;--nob:#412120;--hf:#f0c15a;--hfb:#3d3216;--lv:#8cbcf0;--lvb:#1a3048;--wo:#aaaabb;--wob:#2a2f38;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1c1815;--surface:#26201c;--surface2:#1c1815;--ink:#f0e8e0;--mute:#b3a69b;--line:#3a312b;
+  --accent:#e08a6f;--accent-ink:#1c1110;--accent-soft:#3a2520;--zebra:#2b241f;--hover:#352b25;
+  --ok:#6fd49b;--okb:#17382a;--no:#ff8f84;--nob:#412120;--hf:#f0c15a;--hfb:#3d3216;--lv:#8cbcf0;--lvb:#1a3048;--wo:#aaaabb;--wob:#2a2f38;color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--body);padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.shell{max-width:none;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2{text-wrap:balance}
+
+.top{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;padding:20px 24px;border-radius:20px;color:var(--on-hero);box-shadow:0 10px 28px rgba(43,37,34,.2);background:linear-gradient(120deg,var(--hero-a) 0%,var(--hero-m) 55%,var(--hero-b) 150%)}
+.top .sub{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--on-hero-mute)}
+.top h1{margin:2px 0 0;font:700 28px/1.15 var(--display);letter-spacing:.3px}
+.top .btn{background:var(--on-hero);color:var(--hero-a);border-color:var(--on-hero)}
+.brandrow{display:flex;align-items:center;gap:14px}
+.top h1 i{font-style:normal;color:var(--hero-dot)}
+.cycle{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.cycle label{color:var(--on-hero-mute)}
+.cycle input{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:var(--on-hero);color-scheme:dark}
+.cyc-note{font-size:12.5px;color:var(--on-hero)}
+
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+#ov.on{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;bottom:0;left:0;width:260px;max-width:80vw;background:var(--surface);border-right:1px solid var(--line);transform:translateX(-102%);visibility:hidden;transition:transform .2s,visibility .2s;z-index:41;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 16px;padding-left:calc(12px + env(safe-area-inset-left,0px));overflow:auto}
+#drawer.on{transform:none;visibility:visible}
+.dh{font:700 20px var(--display);margin:0 6px 12px;color:var(--accent)}
+#tabs{display:flex;flex-direction:column;gap:6px}
+.tab{text-align:left;width:100%;border:0;background:transparent;color:var(--ink);padding:11px 12px;border-radius:10px;font:500 14px var(--body);cursor:pointer}
+.tab:hover{background:var(--bg)}
+.tab.on{background:var(--accent);color:var(--accent-ink)}
+#view{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+.card{background:var(--surface);border:0;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(43,37,34,.07),0 8px 22px rgba(43,37,34,.06);min-width:0}
+.card.fit{width:fit-content;max-width:100%;min-width:min(100%,440px)}
+.card.fit .note{width:0;min-width:100%}
+.ct{font:700 15px var(--display);margin:0 0 12px;letter-spacing:.01em}
+.note{font-size:12.5px;color:var(--mute);margin-top:10px;max-width:90ch}
+.empty{color:var(--mute);display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--surface);border:0;border-left:4px solid var(--accent);border-radius:14px;padding:14px 16px;min-width:0;box-shadow:0 1px 2px rgba(43,37,34,.07),0 8px 22px rgba(43,37,34,.06)}
+.kpi span{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.kpi b{display:block;font:700 22px/1.2 var(--body);margin-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kpi.hi b{color:var(--accent)}
+
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.row>label{flex:1 1 130px;max-width:240px}
+.row>label.wide{flex-basis:220px;max-width:320px}
+.row>label.btn{flex:none;max-width:none}
+label{display:flex;flex-direction:column;font-size:12px;font-weight:500;color:var(--mute);gap:4px;min-width:0}
+input,select,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:38px;min-width:0;width:100%}
+input[type=file]{display:none}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.drop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:9px;padding:8px 15px;font:600 13.5px var(--body);min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.s{background:transparent;color:var(--accent);border-color:var(--line)}
+.btn.s:hover{border-color:var(--accent);background:var(--accent-soft);filter:none}
+.btn.d{background:transparent;color:var(--no);border-color:var(--line);padding:3px 10px;min-height:0;font-size:12.5px}
+.btn.d:hover{border-color:var(--no);filter:none}
+label.btn{flex-direction:row;align-items:center;font-size:13.5px;color:var(--accent);background:transparent;border-color:var(--line)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+.sc{overflow-x:auto}
+table{border-collapse:separate;border-spacing:0;width:max-content;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);background:var(--surface2);vertical-align:bottom;line-height:1.25}
+thead th:first-child{border-top-left-radius:10px}
+thead th:last-child{border-top-right-radius:10px}
+td.n,th.n{text-align:right}
+tbody tr:nth-child(even) td{background:var(--zebra)}
+tbody tr:hover td{background:var(--hover)}
+tfoot td{font-weight:700;background:var(--surface2);border-bottom:0}
+.pay td:first-child,.pay th:first-child{position:sticky;left:0;z-index:1;background:var(--surface)}
+.pay th:first-child,.pay tfoot td:first-child{background:var(--surface2)}
+.pay tbody tr:nth-child(even) td:first-child{background:var(--zebra)}
+.pay tbody tr:hover td:first-child{background:var(--hover)}
+.pay td.net{font-weight:700;color:var(--accent)}
+.pay td.name{font-weight:600}
+.kv{width:100%}
+.kv td.n{width:1%}
+
+.g{width:100%}
+.g th,.g td{padding:3px 2px;text-align:center}
+.g td.nm{text-align:left;position:sticky;left:0;z-index:1;background:var(--surface);padding:4px 14px 4px 6px;min-width:160px}
+.g tbody tr td,.g tbody tr:hover td{background:transparent}
+.g tbody tr td.nm,.g tbody tr:hover td.nm{background:var(--surface)}
+.g th:first-child{text-align:left;padding-left:4px;position:sticky;left:0;z-index:2}
+.g .fill{margin-top:3px;padding:1px 8px;min-height:0;font-size:11px}
+.sun{color:var(--no)}
+.c{width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--mute);font-size:12px;font-weight:700;padding:0;line-height:1}
+.c:hover{border-color:var(--accent)}
+.c.P{background:var(--okb);color:var(--ok);border-color:transparent}.c.A{background:var(--nob);color:var(--no);border-color:transparent}.c.H{background:var(--hfb);color:var(--hf);border-color:transparent}.c.L{background:var(--lvb);color:var(--lv);border-color:transparent}.c.W{background:var(--wob);color:var(--wo);border-color:transparent}.c.HL{background:var(--lvb);color:var(--lv);font-size:10px;border-color:transparent}
+.leg{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12.5px;color:var(--mute);margin:0 0 12px}
+.leg span{display:inline-flex;align-items:center;gap:6px}
+.leg .c{width:24px;height:24px;font-size:11px;cursor:default;display:inline-flex;align-items:center;justify-content:center}
+
+.pill{border-radius:99px;padding:3px 11px;font-size:12px;font-weight:600;border:0;cursor:pointer}
+.pill.ap{background:var(--okb);color:var(--ok)}.pill.pe{background:var(--hfb);color:var(--hf)}
+
+.drop{border:1.5px dashed var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;background:var(--surface2)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop .txt{flex:1 1 280px;min-width:0}
+.drop .txt b{font:700 14.5px var(--body)}
+.ratebox{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-end;margin-bottom:14px}
+.ratebox .big{font:700 34px/1 var(--body);letter-spacing:-.01em}
+.ratebox .big small{font:500 14px var(--body);color:var(--mute);letter-spacing:0}
+.callout{border:1px solid var(--line);background:var(--accent-soft);border-radius:14px;padding:12px 16px;display:flex;gap:12px;justify-content:space-between;align-items:flex-start}
+.callout ul{margin:6px 0 0;padding-left:18px}
+.callout .btn.s{background:var(--surface)}
+
+.ct2{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:18px 0 10px}
+.btn.sm{padding:3px 10px;min-height:0;font-size:12.5px}
+.acts{display:flex;gap:6px}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
+.chip{background:var(--surface2);border-radius:12px;padding:10px 12px;min-width:0}
+.chip span{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.chip b{font:700 20px/1.3 var(--body);font-variant-numeric:tabular-nums}
+.chip.hi{background:var(--accent);color:var(--accent-ink)}
+.chip.hi span{color:inherit;opacity:.85}
+.slipcard{display:flex;flex-direction:column;gap:14px}
+.slip-head{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;align-items:flex-end}
+.slip-head h2{font:700 22px/1.1 var(--display);margin:2px 0 0}
+.slip-head .sub{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 16px;background:var(--surface2);border-radius:12px;padding:12px 14px}
+.meta span{display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute)}
+.meta b{font-weight:700;font-size:15px;overflow-wrap:anywhere}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;align-items:start}
+.panel{border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:0}
+.panel tbody tr:last-child td{border-bottom:0}
+.net{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;align-items:center;padding:14px 18px;border-radius:12px;background:var(--accent);color:var(--accent-ink)}
+.net span{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.net b{font:700 26px/1.1 var(--body);font-variant-numeric:tabular-nums}
+details.how{margin-top:14px;font-size:13px;color:var(--mute)}
+details.how summary{cursor:pointer;font-weight:600;color:var(--ink)}
+details.how p{max-width:90ch;margin:8px 0 0}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:99;max-width:90%;display:none}
+
+@media (max-width:560px){.top{padding:16px}.top h1{font-size:24px}.card{padding:14px}.row>label{flex-basis:calc(50% - 5px)}}
+@media (prefers-reduced-motion:no-preference){.tab,.btn,.c{transition:background-color .15s,border-color .15s,filter .15s}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<div id="ov"></div><nav id="drawer" aria-label="Sections"><div class="dh">Menu</div><div id="tabs"></div></nav>
+<div class="shell">
+  <header class="top">
+    <div class="brandrow"><button class="btn" id="menu" aria-label="Open menu">☰ Menu</button><div><div class="sub">Mind &amp; Work Collaborative Private Limited</div><h1>Attendance &amp; Payroll<i>.</i></h1></div></div>
+    <div class="cycle"><label>Cycle starts in<input type="month" id="mon"></label><div class="cyc-note" id="cyc"></div><button class="btn" id="fs" hidden>Full screen</button></div>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const inr=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0});
+const CO='MIND & WORK COLLABORATIVE PRIVATE LIMITED';
+let S={emps:[],att:{},exp:[],ded:[],arr:[],notes:{}};
+try{const r=localStorage.getItem('apr1');if(r)S=JSON.parse(r)}catch(e){}
+S.emps=S.emps||[];S.att=S.att||{};S.exp=S.exp||[];S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4;
+S.ded.forEach(x=>{if(x.type==='Loan EMI'||x.type==='Advance')x.type='Advance/EMI'});
+const save=()=>{try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}};
+let M=(()=>{const t=new Date();let y=t.getFullYear(),m=t.getMonth()+1;if(t.getDate()<15){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})(),tab='emp',IMP=null,EDIT=null;
+const TABS=[['emp','👥 Employees'],['att','🗓️ Attendance'],['exp','🚗 Travel expenses'],['arr','➕ Arrears'],['ded','➖ Deductions'],['pay','📊 Payroll summary'],['slip','🧾 Salary slip']];
+const CY=['','P','A','H','HL','L','W'];
+const dim=()=>{const[y,m]=M.split('-').map(Number);return Math.round((Date.UTC(y,m,16)-Date.UTC(y,m-1,15))/864e5)+1};
+const dayDate=d=>{const[y,m]=M.split('-').map(Number);return new Date(y,m-1,14+d)};
+const iso=t=>t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+const cs=()=>iso(dayDate(1)),ce=()=>iso(dayDate(dim()));
+const inCyc=d=>d>=cs()&&d<=ce();
+const fmtD=t=>t.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const sd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})};
+const dow=d=>dayDate(d).getDay();
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const dedAmt=(x,e)=>x.basis==='days'?Math.round(e.salary/30*x.val):x.val;
+const DT={'Late check-in':['days',0.5],'Penalty':['days',0.5],'Insurance':['amt',''],'Advance/EMI':['amt','']};
+const KL={'Late check-in':'Late<br>check-in','Advance/EMI':'Advance<br>/EMI'};
+const ename=id=>(S.emps.find(e=>e.id===id)||{}).name||'(removed)';
+const opts=()=>S.emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
+const sorted=()=>[...S.emps].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}));
+const none=()=>'<div class="card empty">Add employees first. <button class="btn s" data-t="emp">Go to Employees</button></div>';
+const fit=aoa=>aoa[0].map((_,i)=>({wch:Math.min(42,Math.max(...aoa.map(r=>String(r[i]??'').length))+2)}));
+const monthLabel=()=>fmtD(dayDate(1))+' to '+fmtD(dayDate(dim()));
+const C={ink:[43,37,34],acc:[168,69,45],mute:[122,110,102],line:[228,217,207],soft:[250,245,240],bg:[244,239,233],hmute:[233,207,196],accSoft:[246,227,220]};
+function brand(doc,x,y){doc.setTextColor(...C.ink);doc.setFont('courier','bold');doc.setFontSize(15);doc.text(CO,x,y);doc.setTextColor(...C.acc);doc.text('.',x+doc.getTextWidth(CO),y)}
+const fN=n=>Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0});
+
+function calc(e){
+  const a=S.att[e.id+'|'+M+'|c']||{};let c={P:0,A:0,H:0,HL:0,L:0,W:0};
+  for(let d=1;d<=dim();d++){const v=a[d];if(v)c[v]++}
+  const marked=c.P+c.A+c.H+c.HL+c.L+c.W,days=dim();
+  const unpaid=c.A+.5*c.H+(days-marked);
+  const payable=marked===0?0:Math.max(0,30-unpaid);
+  const gross=Math.round(e.salary/30*payable);
+  const ax=S.exp.filter(x=>x.emp===e.id&&inCyc(x.date)&&x.status==='Approved');
+  const trv=ax.reduce((s,x)=>s+x.amt,0);
+  const dls=S.ded.filter(x=>x.emp===e.id&&inCyc(x.date)),dby={};
+  Object.keys(DT).forEach(k=>dby[k]=0);
+  dls.forEach(x=>{dby[x.type]=(dby[x.type]||0)+dedAmt(x,e)});
+  const ded=dls.reduce((s,x)=>s+dedAmt(x,e),0);
+  const arr=S.arr.filter(x=>x.emp===e.id&&inCyc(x.date)).reduce((s,x)=>s+x.amt,0);
+  return{...c,unmarked:days-marked,payable,gross,arr,trv,ded,dby,km:Math.round(ax.reduce((s,x)=>s+(x.km||0),0)*100)/100,late:dls.filter(x=>x.type==='Late check-in').length,net:gross+arr+trv-ded};
+}
+
+function render(){
+  $('#mon').value=M;$('#cyc').textContent=monthLabel();
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${k===tab?'on':''}" data-t="${k}">${l}</button>`).join('');
+  ({emp:rEmp,att:rAtt,exp:rExp,arr:rArr,ded:rDed,pay:rPay,slip:rSlip})[tab]();
+}
+
+function rEmp(){
+  const ed=EDIT&&S.emps.find(x=>x.id===EDIT),v=k=>esc(ed?ed[k]||'':'');
+  $('#view').innerHTML=`<div class="card"><h2 class="ct">${ed?'Edit employee':'Add employee'}</h2>
+  <div class="row">
+  <label class="wide">Name<input id="en" value="${v('name')}"></label><label>Employee code<input id="ec" value="${v('code')}"></label>
+  <label>Designation<input id="ed" value="${v('desig')}"></label><label>Date of joining<input type="date" id="ej" value="${v('doj')}"></label>
+  <label>Monthly salary (₹)<input id="es" type="number" min="0" value="${ed?esc(ed.salary):''}"></label></div>
+  <h3 class="ct2">Contact and bank details</h3>
+  <div class="row">
+  <label>Contact number<input id="ep" type="tel" value="${v('phone')}"></label><label class="wide">Email<input id="ee" type="email" value="${v('email')}"></label>
+  <label>PAN<input id="ex" maxlength="10" style="text-transform:uppercase" value="${v('pan')}"></label>
+  <label class="wide">Bank name<input id="eb" value="${v('bank')}"></label><label>Account number<input id="ea" inputmode="numeric" value="${v('acc')}"></label><label>IFSC<input id="ei" maxlength="11" style="text-transform:uppercase" value="${v('ifsc')}"></label></div>
+  <div class="toolbar" style="margin-top:14px"><button class="btn" id="addE">${ed?'Save changes':'Add employee'}</button>${ed?'<button class="btn s" id="canE">Cancel</button>':''}</div></div>
+  <div class="card fit sc">${S.emps.length?`<table><thead><tr><th>Code</th><th>Name</th><th>Designation</th><th>Contact</th><th class="n">Monthly salary</th><th class="n">Per day</th><th></th></tr></thead><tbody>${S.emps.map(e=>`<tr><td>${esc(e.code)||'–'}</td><td>${esc(e.name)}</td><td>${esc(e.desig)||'–'}</td><td>${esc(e.phone)||'–'}</td><td class="n">${inr(e.salary)}</td><td class="n">${inr(e.salary/30)}</td><td><div class="acts"><button class="btn s sm" data-edit="${e.id}">Edit</button><button class="btn d" data-del="${e.id}">Delete</button></div></td></tr>`).join('')}</tbody></table>`:'<div class="empty">No employees yet. Add your first employee above.</div>'}
+  <div class="note">Data is saved in this browser only. Use Export backup on the Payroll summary tab to keep a copy. Per day = monthly salary ÷ 30. Contact, PAN and bank details appear on the salary slip.</div></div>`;
+  $('#addE').onclick=()=>{const n=$('#en').value.trim(),sal=parseFloat($('#es').value);if(!n||!(sal>=0))return;
+    const o={name:n,code:$('#ec').value.trim(),salary:sal,desig:$('#ed').value.trim(),doj:$('#ej').value,phone:$('#ep').value.trim(),email:$('#ee').value.trim(),pan:$('#ex').value.trim().toUpperCase(),bank:$('#eb').value.trim(),acc:$('#ea').value.trim(),ifsc:$('#ei').value.trim().toUpperCase()};
+    if(ed)Object.assign(ed,o);else S.emps.push({id:uid(),...o});EDIT=null;save();render()};
+  if(ed)$('#canE').onclick=()=>{EDIT=null;render()};
+}
+
+function rAtt(){
+  if(!S.emps.length){$('#view').innerHTML=none();return}
+  const D=dim(),W='SMTWTFS';
+  let h='<th>Employee</th>';
+  for(let d=1;d<=D;d++)h+=`<th class="${dow(d)==0?'sun':''}">${dayDate(d).getDate()}<br>${W[dow(d)]}<br><span style="font-size:9px;font-weight:400">${dayDate(d).toLocaleDateString('en-IN',{month:'short'})}</span></th>`;
+  const rows=S.emps.map(e=>{const a=S.att[e.id+'|'+M+'|c']||{};let r=`<td class="nm">${esc(e.name)}<br><button class="btn s fill" data-fill="${e.id}">Fill month</button></td>`;
+    for(let d=1;d<=D;d++){const v=a[d]||'';r+=`<td><button class="c ${v}" data-e="${e.id}" data-d="${d}">${v||'·'}</button></td>`}return`<tr>${r}</tr>`}).join('');
+  $('#view').innerHTML=`<div class="card"><div class="leg"><span><b class="c P">P</b>Present</span><span><b class="c A">A</b>Absent</span><span><b class="c H">H</b>Half day</span><span><b class="c HL">HL</b>Half-day leave (paid)</span><span><b class="c L">L</b>Paid leave</span><span><b class="c W">W</b>Weekly off</span></div>
+  <div class="sc"><table class="g"><thead><tr>${h}</tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="note">Tap a cell to cycle through the statuses. “Fill month” marks every day Present and Sundays as Weekly off. Unmarked days count as unpaid.</div></div>`;
+}
+
+function impBox(){
+  const i=IMP;if(!i)return'';
+  const why=[];
+  if(i.miss.length)why.push('Employee not found: '+i.miss.map(esc).join(', ')+'. Add them on the Employees tab, or match the name or code exactly.');
+  if(i.badDate)why.push(i.badDate+' row'+(i.badDate==1?'':'s')+' with a missing or unreadable date.');
+  if(i.zero)why.push(i.zero+' row'+(i.zero==1?'':'s')+' with no km and no amount.');
+  return`<div class="callout"><div><b>${i.ok} claim${i.ok==1?'':'s'} imported from ${esc(i.file)}</b><div class="note" style="margin:2px 0 0">Imported claims are Pending until you approve them.${i.outside?' '+i.outside+' dated outside this cycle, so not shown below.':''}</div>${why.length?`<ul>${why.map(w=>`<li>${w}</li>`).join('')}</ul>`:''}</div><button class="btn s" data-x="imp">Dismiss</button></div>`;
+}
+
+function rExp(){
+  if(!S.emps.length){$('#view').innerHTML=none();return}
+  S.rate=S.rate||4;
+  const list=S.exp.filter(x=>inCyc(x.date)).sort((a,b)=>a.date<b.date?-1:1);
+  const tot=list.reduce((s,x)=>s+x.amt,0),ap=list.filter(x=>x.status==='Approved').reduce((s,x)=>s+x.amt,0),km=Math.round(list.reduce((s,x)=>s+(x.km||0),0)*100)/100;
+  const pend=list.filter(x=>x.status!=='Approved').length;
+  $('#view').innerHTML=`<div class="kpis"><div class="kpi"><span>Distance</span><b>${km.toLocaleString('en-IN')} km</b></div><div class="kpi"><span>Rate</span><b>₹${S.rate} per km</b></div><div class="kpi"><span>Claimed</span><b>${inr(tot)}</b></div><div class="kpi hi"><span>Approved</span><b>${inr(ap)}</b></div></div>
+  ${impBox()}
+  <div class="card"><h2 class="ct">Rate and Excel import</h2>
+  <div class="ratebox"><div><div class="big">₹${S.rate}<small> per km</small></div></div>
+  <label style="width:140px">Change rate (₹ per km)<input id="xr" type="number" min="0" step="any" value="${S.rate}"></label>
+  <div class="note" style="margin:0;flex:1 1 240px">Amount = km travelled × ₹${S.rate}. Overwrite the amount for tickets or other fixed fares. A new rate applies to new entries only.</div></div>
+  <div class="drop" id="drop" tabindex="0"><div class="txt"><b>Import travel claims from Excel or CSV</b><div class="note" style="margin-top:4px">Drop a .xlsx, .xls or .csv file here, or choose one. Columns: Employee, Date, From, To, Mode, Purpose, Km, Amount (optional), Status (optional). A blank Amount becomes Km × ₹${S.rate}. The employee name or code must already exist.</div></div>
+  <div class="toolbar"><button class="btn" id="xi">Choose file</button><button class="btn s" id="xt2">Download template</button><button class="btn s" id="xo">Export cycle to Excel</button></div><input type="file" id="xf2" accept=".xlsx,.xls,.csv"></div></div>
+  <div class="card"><h2 class="ct">Add expense</h2><div class="row">
+  <label>Employee<select id="xe">${opts()}</select></label><label>Date<input type="date" id="xd" value="${cs()}"></label>
+  <label>From<input id="xf"></label><label>To<input id="xt"></label>
+  <label>Mode<select id="xm"><option>Bike</option><option>Bus</option><option>Train</option><option>Auto/Taxi</option><option>Car</option><option>Other</option></select></label>
+  <label class="wide">Purpose<input id="xp"></label>
+  <label>Km travelled<input id="xk" type="number" min="0" step="any"></label>
+  <label>Amount (₹)<input id="xa" type="number" min="0" placeholder="km × ₹${S.rate}"></label>
+  <button class="btn" id="addX">Add expense</button></div></div>
+  <div class="card fit sc"><div class="toolbar" style="margin-bottom:12px"><h2 class="ct" style="margin:0">Expenses in this cycle</h2>${pend?`<button class="btn s" data-x="appall">Approve all pending (${pend})</button>`:''}</div>${list.length?`<table><thead><tr><th>Date</th><th>Employee</th><th>Route</th><th>Mode</th><th>Purpose</th><th class="n">Km</th><th class="n">Amount</th><th>Status</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td title="${x.date}">${sd(x.date)}</td><td>${esc(ename(x.emp))}</td><td>${x.from||x.to?esc(x.from)+' → '+esc(x.to):'–'}</td><td>${esc(x.mode)}</td><td>${esc(x.purpose)||'–'}</td><td class="n">${x.km||'–'}</td><td class="n">${inr(x.amt)}</td><td><button class="pill ${x.status==='Approved'?'ap':'pe'}" data-st="${x.id}">${x.status}</button></td><td><button class="btn d" data-dx="${x.id}">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">Total · approved ${inr(ap)}</td><td class="n">${km}</td><td class="n">${inr(tot)}</td><td colspan="2"></td></tr></tfoot></table>`:'<div class="empty">No travel expenses in this cycle.</div>'}
+  <div class="note">Only expenses marked Approved are added to payroll. Tap a status to switch it between Pending and Approved.</div></div>`;
+  $('#xk').oninput=()=>{const k=parseFloat($('#xk').value);if(k>=0)$('#xa').value=Math.round(k*S.rate*100)/100};
+  $('#xr').onchange=ev=>{const r=parseFloat(ev.target.value);if(r>=0){S.rate=r;save();render()}};
+  $('#addX').onclick=()=>{const k=parseFloat($('#xk').value)||0;let a=parseFloat($('#xa').value);if(!(a>=0))a=k*S.rate;const d=$('#xd').value;if(!(a>0)||!d)return;
+    S.exp.push({id:uid(),emp:$('#xe').value,date:d,from:$('#xf').value.trim(),to:$('#xt').value.trim(),mode:$('#xm').value,purpose:$('#xp').value.trim(),km:k,amt:a,status:'Pending'});save();render()};
+  $('#xi').onclick=()=>$('#xf2').click();
+  $('#xf2').onchange=ev=>{const f=ev.target.files[0];if(f)importExp(f);ev.target.value=''};
+  $('#xt2').onclick=tplExp;
+  $('#xo').onclick=()=>expXlsx(list);
+  const dz=$('#drop');
+  ['dragenter','dragover'].forEach(n=>dz.addEventListener(n,ev=>{ev.preventDefault();dz.classList.add('over')}));
+  ['dragleave','drop'].forEach(n=>dz.addEventListener(n,ev=>{ev.preventDefault();dz.classList.remove('over')}));
+  dz.addEventListener('drop',ev=>{const f=ev.dataTransfer&&ev.dataTransfer.files[0];if(f)importExp(f)});
+}
+function importExp(file){
+  if(!window.XLSX){toast('Excel library failed to load. Reload the page and try again.');return}
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const wb=XLSX.read(r.result,{type:'array',cellDates:true});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true});
+    const norm=s=>String(s).toLowerCase().replace(/[^a-z]/g,'');
+    const pick=(o,...ks)=>{for(const k of Object.keys(o)){if(ks.includes(norm(k)))return o[k]}return ''};
+    const toISO=v=>{if(v instanceof Date)return isNaN(v)?'':iso(new Date(v.getTime()+432e5));
+      const s=String(v).trim();if(!s)return'';let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if(m){let y=+m[3];if(y<100)y+=2000;return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')}
+      m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];
+      const t=new Date(s);return isNaN(t)?'':iso(t)};
+    let ok=0,inC=0,badDate=0,zero=0;const miss=new Set();
+    rows.forEach(o=>{
+      const rawN=String(pick(o,'employee','employeename','name','empname')).trim(),en=rawN.toLowerCase(),ec=String(pick(o,'code','employeecode','empcode')).trim().toLowerCase();
+      const e=S.emps.find(x=>x.name.trim().toLowerCase()===en||(ec&&(x.code||'').trim().toLowerCase()===ec)||(en&&(x.code||'').trim().toLowerCase()===en));
+      if(!e){miss.add(rawN||'(blank name)');return}
+      const d=toISO(pick(o,'date','traveldate'));if(!d){badDate++;return}
+      const km=parseFloat(pick(o,'km','kms','kilometers','kilometres','distance','kmtravelled','kmtraveled'))||0;
+      let a=parseFloat(pick(o,'amount','amt','total'));if(!(a>=0))a=Math.round(km*S.rate*100)/100;
+      if(!(a>0)){zero++;return}
+      S.exp.push({id:uid(),emp:e.id,date:d,from:String(pick(o,'from')).trim(),to:String(pick(o,'to')).trim(),mode:String(pick(o,'mode')).trim()||'Bike',purpose:String(pick(o,'purpose','remarks','note')).trim(),km,amt:a,status:String(pick(o,'status')).toLowerCase().startsWith('appr')?'Approved':'Pending'});
+      ok++;if(inCyc(d))inC++});
+    IMP={ok,outside:ok-inC,badDate,zero,miss:[...miss],file:file.name};
+    save();render();
+    toast('Imported '+ok+' expense'+(ok==1?'':'s'));
+  }catch(err){toast('Import failed: '+err.message)}};
+  r.readAsArrayBuffer(file);
+}
+const TXH=['Employee','Date','From','To','Mode','Purpose','Km','Amount','Status'];
+function tplExp(){
+  if(!window.XLSX){toast('Excel library failed to load. Reload the page and try again.');return}
+  const aoa=[TXH,[S.emps[0]?S.emps[0].name:'Employee name',cs(),'Office','Client site','Bike','Site visit',25,'','Pending']];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=fit(aoa);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Travel');
+  dl('travel-expense-template.xlsx','application/octet-stream',XLSX.write(wb,{type:'array',bookType:'xlsx'}));
+}
+function expXlsx(list){
+  if(!window.XLSX){toast('Excel library failed to load. Reload the page and try again.');return}
+  if(!list.length){toast('No travel expenses in this cycle to export');return}
+  const aoa=[TXH,...list.map(x=>[ename(x.emp),x.date,x.from,x.to,x.mode,x.purpose,x.km||0,x.amt,x.status])];
+  aoa.push(['Total','','','','','',list.reduce((s,x)=>s+(x.km||0),0),list.reduce((s,x)=>s+x.amt,0),'']);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=fit(aoa);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Travel');
+  dl('travel-expenses-'+M+'.xlsx','application/octet-stream',XLSX.write(wb,{type:'array',bookType:'xlsx'}));
+}
+
+let SE='';
+const dojTxt=e=>e.doj?fmtD(new Date(e.doj+'T00:00:00')):'';
+function rSlip(){
+  if(!S.emps.length){$('#view').innerHTML=none();return}
+  if(!S.emps.find(x=>x.id===SE))SE=S.emps[0].id;
+  const e=S.emps.find(x=>x.id===SE),c=calc(e),K=Object.keys(DT);
+  const row=(a,b)=>`<tr><td>${a}</td><td class="n">${b}</td></tr>`;
+  const det=[['Employee',e.name],['Employee code',e.code],['Designation',e.desig],['Date of joining',dojTxt(e)],['PAN',e.pan],['Contact number',e.phone],['Email',e.email],['Bank',e.bank],['Account number',e.acc],['IFSC',e.ifsc],['Monthly salary',inr(e.salary)]];
+  const att=[['Present',c.P],['Half day',c.H],['Half-day leave',c.HL],['Paid leave',c.L],['Weekly off',c.W],['Absent',c.A],['Late check-ins',c.late],['Payable days',c.payable+' of 30',1]];
+  $('#view').innerHTML=`<div class="card"><div class="row"><label class="wide">Employee<select id="se">${opts()}</select></label><button class="btn" id="spdf">Export slip PDF</button><button class="btn s" id="sall">Export all slips (PDF)</button></div></div>
+  <div class="card slipcard"><div class="slip-head"><div><div class="sub">${CO}</div><h2>Salary slip</h2></div><div class="note" style="margin:0">${monthLabel()}</div></div>
+  <div><h3 class="ct2" style="margin-top:0">Employee details</h3><div class="meta">${det.map(d=>`<div><span>${d[0]}</span><b>${esc(d[1])||'–'}</b></div>`).join('')}</div></div>
+  <div><h3 class="ct2" style="margin-top:0">Attendance</h3><div class="strip">${att.map(a=>`<div class="chip${a[2]?' hi':''}"><span>${a[0]}</span><b>${a[1]}</b></div>`).join('')}</div></div>
+  <div class="panels">
+  <div class="panel sc"><table class="kv"><thead><tr><th colspan="2">Earnings</th></tr></thead><tbody>${row('Salary earned',inr(c.gross))}${row('Arrear',inr(c.arr))}${row('Travel reimbursement'+(c.km?' ('+c.km+' km at ₹'+S.rate+')':''),inr(c.trv))}</tbody><tfoot><tr><td>Total earnings</td><td class="n">${inr(c.gross+c.arr+c.trv)}</td></tr></tfoot></table></div>
+  <div class="panel sc"><table class="kv"><thead><tr><th colspan="2">Deductions</th></tr></thead><tbody>${K.map(k=>row(k==='Late check-in'?'Late check-in ('+c.late+')':k,inr(c.dby[k]))).join('')}</tbody><tfoot><tr><td>Total deductions</td><td class="n">${inr(c.ded)}</td></tr></tfoot></table></div></div>
+  <div class="net"><span>Net pay</span><b>${inr(c.net)}</b></div></div>`;
+  $('#se').value=SE;$('#se').onchange=ev=>{SE=ev.target.value;render()};
+  $('#spdf').onclick=()=>slipPdf([e]);$('#sall').onclick=()=>slipPdf(sorted());
+}
+function slipPdf(list){try{
+  const J=window.jspdf;if(!J){toast('PDF library failed to load. Reload the page and try again.');return}
+  const doc=new J.jsPDF({unit:'mm',format:'a4'}),W=210,K=Object.keys(DT);
+  const st={font:'courier',fontSize:8.5,cellPadding:2.4,textColor:C.ink,lineColor:C.line,lineWidth:{bottom:.2}};
+  const th={fillColor:C.bg,textColor:C.mute,fontStyle:'bold',fontSize:8,lineColor:C.line,lineWidth:{bottom:.3}},ft={fillColor:C.soft,textColor:C.ink,fontStyle:'bold'};
+  const cs2={0:{cellWidth:'auto'},1:{cellWidth:'wrap',halign:'right'}};
+  const cut=(t,w)=>{t=String(t);if(doc.getTextWidth(t)<=w)return t;while(t.length>1&&doc.getTextWidth(t+'...')>w)t=t.slice(0,-1);return t+'...'};
+  list.forEach((e,i)=>{
+    if(i)doc.addPage();const c=calc(e);
+    doc.setFillColor(...C.bg);doc.rect(0,0,W,30,'F');doc.setFillColor(...C.acc);doc.rect(0,30,W,1.2,'F');
+    brand(doc,15,14);
+    doc.setFont('courier','normal');doc.setFontSize(8);doc.setTextColor(...C.mute);doc.text('SALARY SLIP  |  AMOUNTS IN INR',15,22);
+    doc.setFont('courier','bold');doc.setTextColor(...C.ink);doc.text(monthLabel(),W-15,22,{align:'right'});
+    // employee details
+    doc.setFillColor(...C.soft);doc.roundedRect(15,42,W-30,42,2,2,'F');
+    const fld=(l,v,x,y,w)=>{doc.setFont('courier','normal');doc.setFontSize(6.8);doc.setTextColor(...C.mute);doc.text(l.toUpperCase(),x,y);doc.setFont('courier','bold');doc.setFontSize(9);doc.setTextColor(...C.ink);doc.text(cut(v||'-',w),x,y+5)};
+    const cx=[20,66,112,158];
+    fld('Employee',e.name,cx[0],49,42);fld('Employee code',e.code,cx[1],49,42);fld('Designation',e.desig,cx[2],49,42);fld('Date of joining',dojTxt(e),cx[3],49,38);
+    fld('PAN',e.pan,cx[0],62,42);fld('Contact number',e.phone,cx[1],62,42);fld('Email',e.email,cx[2],62,84);
+    fld('Bank',e.bank,cx[0],75,42);fld('Account number',e.acc,cx[1],75,42);fld('IFSC',e.ifsc,cx[2],75,42);fld('Monthly salary','INR '+fN(e.salary),cx[3],75,38);
+    // attendance strip
+    doc.setFont('courier','bold');doc.setFontSize(7);doc.setTextColor(...C.mute);doc.text('ATTENDANCE',15,91);
+    const cells=[['Present',c.P],['Half day',c.H],['Half-day leave',c.HL],['Paid leave',c.L],['Weekly off',c.W],['Absent',c.A],['Late check-ins',c.late],['Payable days',c.payable+'/30']];
+    const cw=(W-30-7*2.5)/8;
+    cells.forEach(([l,v],k)=>{const x=15+k*(cw+2.5),hi=k===7;
+      doc.setFillColor(...(hi?C.acc:C.soft));doc.roundedRect(x,93,cw,15,2,2,'F');
+      doc.setFont('courier','normal');doc.setFontSize(5.4);doc.setTextColor(...(hi?[246,227,220]:C.mute));doc.text(cut(l.toUpperCase(),cw-3),x+2,98.5);
+      doc.setFont('courier','bold');doc.setFontSize(12);doc.setTextColor(...(hi?[255,255,255]:C.ink));doc.text(String(v),x+2,105.5)});
+    // earnings and deductions side by side
+    doc.autoTable({startY:116,head:[['Earnings','INR']],body:[['Salary earned',fN(c.gross)],['Arrear',fN(c.arr)],['Travel'+(c.km?' ('+c.km+' km at INR '+S.rate+')':''),fN(c.trv)]],foot:[['Total earnings',fN(c.gross+c.arr+c.trv)]],theme:'plain',styles:st,headStyles:th,footStyles:ft,margin:{left:15,right:W/2+3},columnStyles:cs2});
+    const y1=doc.lastAutoTable.finalY;
+    doc.autoTable({startY:116,head:[['Deductions','INR']],body:K.map(k=>[k==='Late check-in'?'Late check-in ('+c.late+')':k,fN(c.dby[k])]),foot:[['Total deductions',fN(c.ded)]],theme:'plain',styles:st,headStyles:th,footStyles:ft,margin:{left:W/2+3,right:15},columnStyles:cs2});
+    const y3=Math.max(y1,doc.lastAutoTable.finalY)+12;
+    doc.setFillColor(...C.acc);doc.roundedRect(15,y3,W-30,16,2,2,'F');
+    doc.setFont('courier','bold');doc.setFontSize(9);doc.setTextColor(204,244,238);doc.text('NET PAY',21,y3+9.8);
+    doc.setFontSize(16);doc.setTextColor(255,255,255);doc.text('INR '+fN(c.net),W-21,y3+10.5,{align:'right'});
+    doc.setFont('courier','normal');doc.setFontSize(7.5);doc.setTextColor(...C.mute);
+    doc.text('Salary earned = Salary / 30 x payable days. Net pay = Salary earned + Arrear + approved Travel - Deductions.',15,y3+24,{maxWidth:W-30});
+    doc.setTextColor(...C.ink);doc.setDrawColor(...C.ink);doc.setLineWidth(.3);
+    doc.line(15,268,75,268);doc.text('Employee signature',15,273);doc.line(W-75,268,W-15,268);doc.text('Authorised signatory',W-75,273);
+  });
+  dl('salary-slip-'+(list.length===1?list[0].name.replace(/\s+/g,'-'):'all')+'-'+M+'.pdf','application/pdf',doc.output('arraybuffer'));
+}catch(err){toast('PDF error: '+err.message)}}
+
+function rArr(){
+  if(!S.emps.length){$('#view').innerHTML=none();return}
+  const list=S.arr.filter(x=>inCyc(x.date)).sort((a,b)=>a.date<b.date?-1:1);
+  const tot=list.reduce((s,x)=>s+x.amt,0);
+  $('#view').innerHTML=`<div class="card"><h2 class="ct">Add arrear</h2><div class="row"><label>Employee<select id="ae">${opts()}</select></label><label>Date<input type="date" id="ad" value="${cs()}"></label><label class="wide">Reason<input id="an" placeholder="e.g. Salary arrear"></label><label>Amount (₹)<input id="aa" type="number" min="0"></label><button class="btn" id="addA">Add arrear</button></div><div class="note">Arrears are added to the employee’s earnings for the cycle that contains the entry date.</div></div>
+  <div class="card fit sc">${list.length?`<table><thead><tr><th>Date</th><th>Employee</th><th>Reason</th><th class="n">Amount</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td title="${x.date}">${sd(x.date)}</td><td>${esc(ename(x.emp))}</td><td>${esc(x.note)||'–'}</td><td class="n">${inr(x.amt)}</td><td><button class="btn d" data-da="${x.id}">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="3">Total arrears</td><td class="n">${inr(tot)}</td><td></td></tr></tfoot></table>`:'<div class="empty">No arrears this cycle.</div>'}</div>`;
+  $('#addA').onclick=()=>{const a=parseFloat($('#aa').value),d=$('#ad').value;if(!(a>0)||!d)return;S.arr.push({id:uid(),emp:$('#ae').value,date:d,note:$('#an').value.trim(),amt:a});save();render()};
+}
+
+function rDed(){
+  if(!S.emps.length){$('#view').innerHTML=none();return}
+  const em=id=>S.emps.find(e=>e.id===id);
+  const list=S.ded.filter(x=>inCyc(x.date)).sort((a,b)=>a.date<b.date?-1:1);
+  const amt=x=>em(x.emp)?dedAmt(x,em(x.emp)):0;
+  const tot=list.reduce((s,x)=>s+amt(x),0);
+  $('#view').innerHTML=`<div class="card"><h2 class="ct">Add deduction</h2><div class="row">
+  <label>Employee<select id="de">${opts()}</select></label><label>Date<input type="date" id="dd" value="${cs()}"></label>
+  <label>Type<select id="dt">${Object.keys(DT).map(k=>`<option>${k}</option>`).join('')}</select></label>
+  <label>Deduct as<select id="db"><option value="days">Days of salary</option><option value="amt">Fixed amount (₹)</option></select></label>
+  <label>Value<input id="dv" type="number" min="0" step="any"></label>
+  <label class="wide">Note<input id="dn"></label>
+  <button class="btn" id="addD">Add deduction</button></div>
+  <div class="note">Late check-in and Penalty default to 0.5 day of salary (daily rate = salary ÷ 30). Insurance and Advance/EMI are fixed amounts. You can change the basis or value for any entry.</div></div>
+  <div class="card fit sc">${list.length?`<table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Basis</th><th>Note</th><th class="n">Amount</th><th></th></tr></thead><tbody>${list.map(x=>`<tr><td title="${x.date}">${sd(x.date)}</td><td>${esc(ename(x.emp))}</td><td>${esc(x.type)}</td><td>${x.basis==='days'?x.val+' day(s)':'Fixed'}</td><td>${esc(x.note)||'–'}</td><td class="n">${inr(amt(x))}</td><td><button class="btn d" data-dd="${x.id}">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="5">Total deductions</td><td class="n">${inr(tot)}</td><td></td></tr></tfoot></table>`:'<div class="empty">No deductions this cycle.</div>'}</div>`;
+  const set=()=>{const d=DT[$('#dt').value];$('#db').value=d[0];$('#dv').value=d[1]};
+  $('#dt').onchange=set;set();
+  $('#addD').onclick=()=>{const v=parseFloat($('#dv').value),d=$('#dd').value;if(!(v>0)||!d)return;
+    S.ded.push({id:uid(),emp:$('#de').value,date:d,type:$('#dt').value,basis:$('#db').value,val:v,note:$('#dn').value.trim()});save();render()};
+}
+
+function rPay(){
+  const R=sorted().map(e=>({e,c:calc(e)}));
+  const K=Object.keys(DT);
+  const T=R.reduce((t,{c})=>({g:t.g+c.gross,x:t.x+c.trv,d:t.d+c.ded,n:t.n+c.net,a:t.a+c.arr,k:t.k+c.km,l:t.l+c.late}),{g:0,x:0,d:0,n:0,a:0,k:0,l:0});
+  T.k=Math.round(T.k*100)/100;
+  const kt=k=>R.reduce((s,{c})=>s+c.dby[k],0);
+  $('#view').innerHTML=`<div class="kpis"><div class="kpi"><span>Employees</span><b>${R.length}</b></div><div class="kpi"><span>Gross pay</span><b>${inr(T.g)}</b></div><div class="kpi"><span>Travel (${T.k} km)</span><b>${inr(T.x)}</b></div><div class="kpi"><span>Deductions</span><b>${inr(T.d)}</b></div><div class="kpi hi"><span>Net payable</span><b>${inr(T.n)}</b></div></div>
+  <div class="card"><div class="toolbar"><button class="btn" id="pdf">Export PDF</button><button class="btn" id="xls">Export Excel</button><button class="btn s" id="csv">Export CSV</button><button class="btn s" id="bak">Export backup</button><label class="btn s">Import backup<input type="file" id="imp" accept=".json"></label></div></div>
+  <div class="card sc pay">${R.length?`<table><thead><tr><th>Employee</th><th class="n">Salary</th><th class="n">P</th><th class="n">H</th><th class="n">HL</th><th class="n">L</th><th class="n">W</th><th class="n">A</th><th class="n">Late</th><th class="n">Payable<br>days</th><th class="n">Gross<br>pay</th><th class="n">Arrear</th><th class="n">Travel<br>km</th><th class="n">Travel</th>${K.map(k=>`<th class="n">${KL[k]||k}</th>`).join('')}<th class="n">Total<br>ded.</th><th class="n">Net<br>pay</th></tr></thead><tbody>${R.map(({e,c})=>`<tr><td class="name">${esc(e.name)}</td><td class="n">${inr(e.salary)}</td><td class="n">${c.P}</td><td class="n">${c.H}</td><td class="n">${c.HL}</td><td class="n">${c.L}</td><td class="n">${c.W}</td><td class="n">${c.A}</td><td class="n">${c.late||'–'}</td><td class="n">${c.payable}</td><td class="n">${inr(c.gross)}</td><td class="n">${c.arr?inr(c.arr):'–'}</td><td class="n">${c.km||'–'}</td><td class="n">${inr(c.trv)}</td>${K.map(k=>`<td class="n">${c.dby[k]?inr(c.dby[k]):'–'}</td>`).join('')}<td class="n">${inr(c.ded)}</td><td class="n net">${inr(c.net)}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="n">${T.l}</td><td></td><td class="n">${inr(T.g)}</td><td class="n">${inr(T.a)}</td><td class="n">${T.k}</td><td class="n">${inr(T.x)}</td>${K.map(k=>`<td class="n">${inr(kt(k))}</td>`).join('')}<td class="n">${inr(T.d)}</td><td class="n">${inr(T.n)}</td></tr></tfoot></table>`:'<div class="empty">Add employees and attendance to see the summary.</div>'}
+  <div class="note" style="margin-top:12px">P present · H half day · HL half-day leave (paid) · L paid leave · W weekly off · A absent. Employees are listed A to Z.</div></div>
+  <div class="card"><label>Notes for ${monthLabel()} (included in the PDF)<textarea data-gnote rows="3" placeholder="Type any manual note for this month’s payroll…">${esc(S.notes['ALL|'+M]||'')}</textarea></label>
+  <details class="how"><summary>How pay is calculated</summary><p>Attendance cycle: 15th of the selected month to the 16th of the next month. Salary is always based on 30 days: daily rate = monthly salary ÷ 30. Payable days = 30 − unpaid days, where unpaid days = Absent + ½ Half day + Unmarked days. So a full-attendance month (28, 30 or 31 days) always earns the full salary. Gross pay = daily rate × payable days. Net pay = Gross + arrears + approved travel expenses − deductions. Travel is claimed at ₹${S.rate} per km unless an amount is entered. Half-day leave (HL) is paid, so nothing is deducted for it. A month with nothing marked pays 0.</p></details></div>`;
+  const hdr=['Employee','Salary','Present','Half day','Half-day leave','Paid leave','Weekly off','Absent','Late check-ins','Payable days','Gross pay','Arrear','Travel km','Travel',...K,'Total deductions','Net pay'];
+  const body=R.map(({e,c})=>[e.name,e.salary,c.P,c.H,c.HL,c.L,c.W,c.A,c.late,c.payable,c.gross,c.arr,c.km,c.trv,...K.map(k=>c.dby[k]),c.ded,c.net]);
+  $('#csv').onclick=()=>{const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+    dl('payroll-'+M+'.csv','text/csv','﻿'+[hdr,...body].map(r=>r.map(q).join(',')).join('\n'))};
+  $('#xls').onclick=()=>{
+    if(!window.XLSX){toast('Excel library failed to load. Reload the page and try again.');return}
+    if(!R.length){toast('Nothing to export yet');return}
+    const tot=['Total','','','','','','','',T.l,'',T.g,T.a,T.k,T.x,...K.map(kt),T.d,T.n];
+    const aoa=[hdr,...body,tot];const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=fit(aoa);
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Payroll');
+    dl('payroll-'+M+'.xlsx','application/octet-stream',XLSX.write(wb,{type:'array',bookType:'xlsx'}))};
+  $('#pdf').onclick=()=>payPdf(R,T,K);
+  $('#bak').onclick=()=>dl('attendance-backup.json','application/json',JSON.stringify(S));
+  $('#imp').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.emps&&d.att&&d.exp){S=d;S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4;save();render();toast('Backup imported')}else toast('That file is not a payroll backup')}catch(e){toast('That file is not a payroll backup')}};r.readAsText(f);ev.target.value=''};
+}
+function payPdf(R,T,K){try{
+  const J=window.jspdf;if(!J){toast('PDF library failed to load. Reload the page and try again.');return}
+  const doc=new J.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+  doc.setFillColor(...C.bg);doc.rect(0,0,W,26,'F');doc.setFillColor(...C.acc);doc.rect(0,26,W,1.2,'F');
+  brand(doc,10,12);
+  doc.setFont('courier','normal');doc.setFontSize(8);doc.setTextColor(...C.mute);
+  doc.text('PAYROLL SUMMARY  |  AMOUNTS IN INR  |  SALARY BASIS 30 DAYS  |  TRAVEL INR '+S.rate+' PER KM',10,20);
+  doc.setFont('courier','bold');doc.setFontSize(9);doc.setTextColor(...C.ink);doc.text(monthLabel(),W-10,12,{align:'right'});
+  const head=[['Employee','Salary','P','H','HL','L','W','A','Late','Payable\ndays','Gross\npay','Arrear','Travel\nkm','Travel',...K.map(k=>(KL[k]||k).replace('<br>','\n')),'Total\nded.','Net\npay']];
+  const body=R.map(({e,c})=>[e.name,fN(e.salary),c.P,c.H,c.HL,c.L,c.W,c.A,c.late,c.payable,fN(c.gross),fN(c.arr),c.km||'-',fN(c.trv),...K.map(k=>c.dby[k]?fN(c.dby[k]):'-'),fN(c.ded),fN(c.net)]);
+  const foot=[['Total','','','','','','','',T.l,'',fN(T.g),fN(T.a),T.k,fN(T.x),...K.map(k=>fN(R.reduce((s,{c})=>s+c.dby[k],0))),fN(T.d),fN(T.n)]];
+  const last=head[0].length-1;
+  doc.autoTable({head,body,foot,startY:34,theme:'plain',margin:{left:10,right:10,bottom:24},showFoot:'lastPage',
+    styles:{font:'courier',fontSize:7,cellPadding:{top:2.2,bottom:2.2,left:1.8,right:1.8},textColor:C.ink,lineColor:C.line,lineWidth:{bottom:.2},cellWidth:'wrap',valign:'middle'},
+    headStyles:{fillColor:C.bg,textColor:C.mute,fontStyle:'bold',fontSize:6.5,lineColor:C.line,lineWidth:{bottom:.3}},
+    footStyles:{fillColor:C.soft,textColor:C.ink,fontStyle:'bold'},
+    alternateRowStyles:{fillColor:C.soft},
+    columnStyles:{0:{cellWidth:'auto',fontStyle:'bold',halign:'left'}},
+    didParseCell:h=>{const i=h.column.index;
+      if(i>0)h.cell.styles.halign=h.section==='head'?'center':'right';
+      if(i===last&&h.section!=='head'){h.cell.styles.fontStyle='bold';if(h.section==='body')h.cell.styles.fillColor=C.accSoft}}});
+  let y=doc.lastAutoTable.finalY+7;const gn=(S.notes['ALL|'+M]||'').trim();
+  if(y>H-46){doc.addPage();y=20}
+  if(gn){doc.setFont('courier','bold');doc.setFontSize(8);doc.setTextColor(...C.ink);doc.text('Notes',10,y);doc.setFont('courier','normal');const ls=doc.splitTextToSize(gn,W-20);doc.text(ls,10,y+4.5);y+=7+ls.length*3.6}
+  doc.setFont('courier','normal');doc.setFontSize(7);doc.setTextColor(...C.mute);
+  doc.text('Gross pay = Salary / 30 x payable days. Net pay = Gross + Arrear + approved Travel - Deductions. P present, H half day, HL half-day leave (paid), L paid leave, W weekly off, A absent. Employees listed A to Z.',10,y,{maxWidth:W-20});
+  doc.setDrawColor(...C.ink);doc.setLineWidth(.3);doc.setTextColor(...C.ink);
+  doc.line(10,H-22,70,H-22);doc.text('Prepared by',10,H-18);
+  doc.line(W-70,H-22,W-10,H-22);doc.text('Approved by',W-70,H-18);
+  const n=doc.getNumberOfPages();
+  for(let p=1;p<=n;p++){doc.setPage(p);doc.setFontSize(7);doc.setTextColor(...C.mute);doc.text(CO+'  |  Payroll '+monthLabel(),10,H-7);doc.text('Page '+p+' of '+n,W-10,H-7,{align:'right'})}
+  dl('payroll-'+M+'.pdf','application/pdf',doc.output('arraybuffer'));
+}catch(err){toast('PDF error: '+err.message)}}
+
+function toast(m){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t)}t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.display='none'},5000)}
+async function dl(name,type,data){
+  try{
+    const d=window.claude?await claude.use('downloads'):null;
+    if(d){await d.save({filename:name,data});toast('Saved '+name);return}
+  }catch(e){if(e&&e.code==='declined'){toast('Save cancelled');return}toast('Save failed ('+((e&&(e.code||e.message))||e)+'). Trying a direct download.')}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('Downloading '+name)}catch(e){toast('Export is not available in this view')}
+}
+
+document.addEventListener('click',ev=>{
+  const t=ev.target.closest('button');if(!t)return;
+  if(t.dataset.t){tab=t.dataset.t;EDIT=null;closeMenu();return render()}
+  if(t.dataset.edit){EDIT=t.dataset.edit;render();try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}return}
+  if(t.dataset.x==='imp'){IMP=null;return render()}
+  if(t.dataset.x==='appall'){S.exp.forEach(x=>{if(inCyc(x.date)&&x.status!=='Approved')x.status='Approved'});save();return render()}
+  if(t.dataset.del){
+    if(t.dataset.arm!=='1'){t.dataset.arm='1';t.textContent='Confirm delete';clearTimeout(t._t);t._t=setTimeout(()=>{t.dataset.arm='';t.textContent='Delete'},3500);return}
+    const id=t.dataset.del;S.emps=S.emps.filter(e=>e.id!==id);S.exp=S.exp.filter(x=>x.emp!==id);S.ded=S.ded.filter(x=>x.emp!==id);S.arr=S.arr.filter(x=>x.emp!==id);Object.keys(S.att).forEach(k=>{if(k.startsWith(id+'|'))delete S.att[k]});save();return render()}
+  if(t.dataset.e){const k=t.dataset.e+'|'+M+'|c',a=S.att[k]=S.att[k]||{},d=t.dataset.d,v=CY[(CY.indexOf(a[d]||'')+1)%CY.length];
+    if(v)a[d]=v;else delete a[d];save();t.className='c '+v;t.textContent=v||'·';return}
+  if(t.dataset.fill){const a={};for(let d=1;d<=dim();d++)a[d]=dow(d)==0?'W':'P';S.att[t.dataset.fill+'|'+M+'|c']=a;save();return render()}
+  if(t.dataset.st){const x=S.exp.find(x=>x.id===t.dataset.st);x.status=x.status==='Approved'?'Pending':'Approved';save();return render()}
+  if(t.dataset.dx){S.exp=S.exp.filter(x=>x.id!==t.dataset.dx);save();return render()}
+  if(t.dataset.dd){S.ded=S.ded.filter(x=>x.id!==t.dataset.dd);save();return render()}
+  if(t.dataset.da){S.arr=S.arr.filter(x=>x.id!==t.dataset.da);save();return render()}
+});
+document.addEventListener('input',ev=>{const t=ev.target;if(t.dataset&&t.dataset.gnote!==undefined){S.notes['ALL|'+M]=t.value;save()}});
+const closeMenu=()=>{$('#drawer').classList.remove('on');$('#ov').classList.remove('on')};
+$('#menu').onclick=()=>{$('#drawer').classList.add('on');$('#ov').classList.add('on')};
+$('#ov').onclick=closeMenu;
+const fsb=$('#fs');
+if(document.fullscreenEnabled){fsb.hidden=false;
+  fsb.onclick=()=>{try{(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()).catch(()=>toast('Full screen is not available in this view'))}catch(e){toast('Full screen is not available in this view')}};
+  document.addEventListener('fullscreenchange',()=>{fsb.textContent=document.fullscreenElement?'Exit full screen':'Full screen'})}
+$('#mon').onchange=e=>{if(e.target.value){M=e.target.value;IMP=null;render()}};
+render();
+</script>
