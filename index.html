@@ -109,7 +109,7 @@ tfoot td{font-weight:700;background:var(--surface2);border-bottom:0}
 .sun{color:var(--no)}
 .c{width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--mute);font-size:12px;font-weight:700;padding:0;line-height:1}
 .c:hover{border-color:var(--accent)}
-.c.P{background:var(--okb);color:var(--ok);border-color:transparent}.c.A{background:var(--nob);color:var(--no);border-color:transparent}.c.H{background:var(--hfb);color:var(--hf);border-color:transparent}.c.L{background:var(--lvb);color:var(--lv);border-color:transparent}.c.W{background:var(--wob);color:var(--wo);border-color:transparent}.c.HL{background:var(--lvb);color:var(--lv);font-size:10px;border-color:transparent}
+.c.P{background:var(--okb);color:var(--ok);border-color:transparent}.c.A{background:var(--nob);color:var(--no);border-color:transparent}.c.H{background:var(--hfb);color:var(--hf);border-color:transparent}.c.L{background:var(--lvb);color:var(--lv);border-color:transparent}.c.W{background:var(--wob);color:var(--wo);border-color:transparent}.c.HO{background:var(--okb);color:var(--ok);font-size:10px;border-color:transparent}.c.HL{background:var(--lvb);color:var(--lv);font-size:10px;border-color:transparent}
 .leg{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12.5px;color:var(--mute);margin:0 0 12px}
 .leg span{display:inline-flex;align-items:center;gap:6px}
 .leg .c{width:24px;height:24px;font-size:11px;cursor:default;display:inline-flex;align-items:center;justify-content:center}
@@ -200,7 +200,7 @@ const cloudSave=()=>{if(!fbOn||!USER)return;setSync('Saving…');clearTimeout(tm
 const save=()=>{try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}cloudSave()};
 let M=(()=>{const t=new Date();let y=t.getFullYear(),m=t.getMonth()+1;if(t.getDate()<16){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})(),tab='emp',IMP=null,EDIT=null,DEDIT=null,AEDIT=null;
 const TABS=[['emp','👥 Employees'],['att','🗓️ Attendance'],['exp','🚗 Travel expenses'],['arr','➕ Arrears'],['ded','➖ Deductions'],['pay','📊 Payroll summary'],['slip','🧾 Salary slip']];
-const CY=['','P','A','H','HL','L','W'];
+const CY=['','P','A','H','HL','L','W','HO'];
 const dim=()=>{const[y,m]=M.split('-').map(Number);return Math.round((Date.UTC(y,m,15)-Date.UTC(y,m-1,16))/864e5)+1};
 const dayDate=d=>{const[y,m]=M.split('-').map(Number);return new Date(y,m-1,15+d)};
 const iso=t=>t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
@@ -228,9 +228,9 @@ function brand(doc,x,y){doc.setTextColor(...C.ink);doc.setFont('courier','bold')
 const fN=n=>Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0});
 
 function calc(e){
-  const a=S.att[e.id+'|'+M+'|c']||{};let c={P:0,A:0,H:0,HL:0,L:0,W:0};
+  const a=S.att[e.id+'|'+M+'|c']||{};let c={P:0,A:0,H:0,HL:0,L:0,W:0,HO:0};
   for(let d=1;d<=dim();d++){const v=a[d];if(v)c[v]++}
-  const marked=c.P+c.A+c.H+c.HL+c.L+c.W,days=dim();
+  const marked=c.P+c.A+c.H+c.HL+c.L+c.W+c.HO,days=dim();
   const unpaid=c.A+.5*c.H+(days-marked);
   const payable=marked===0?0:Math.max(0,30-unpaid);
   const gross=Math.round(e.salary/30*payable);
@@ -278,7 +278,7 @@ function rAtt(){
   for(let d=1;d<=D;d++)h+=`<th class="${dow(d)==0?'sun':''}">${dayDate(d).getDate()}<br>${W[dow(d)]}<br><span style="font-size:9px;font-weight:400">${dayDate(d).toLocaleDateString('en-IN',{month:'short'})}</span></th>`;
   const rows=S.emps.map(e=>{const a=S.att[e.id+'|'+M+'|c']||{};let r=`<td class="nm">${esc(e.name)}<br><button class="btn s fill" data-fill="${e.id}">Fill month</button></td>`;
     for(let d=1;d<=D;d++){const v=a[d]||'';r+=`<td><button class="c ${v}" data-e="${e.id}" data-d="${d}">${v||'·'}</button></td>`}return`<tr>${r}</tr>`}).join('');
-  $('#view').innerHTML=`<div class="card"><div class="leg"><span><b class="c P">P</b>Present</span><span><b class="c A">A</b>Absent</span><span><b class="c H">H</b>Half day</span><span><b class="c HL">HL</b>Half-day leave (paid)</span><span><b class="c L">L</b>Paid leave</span><span><b class="c W">W</b>Weekly off</span></div>
+  $('#view').innerHTML=`<div class="card"><div class="leg"><span><b class="c P">P</b>Present</span><span><b class="c A">A</b>Absent</span><span><b class="c H">H</b>Half day</span><span><b class="c HL">HL</b>Half-day leave (paid)</span><span><b class="c L">L</b>Paid leave</span><span><b class="c W">W</b>Weekly off</span><span><b class="c HO">HO</b>Holiday</span></div>
   <div class="sc"><table class="g"><thead><tr>${h}</tr></thead><tbody>${rows}</tbody></table></div>
   <div class="note">Tap a cell to cycle through the statuses. “Fill month” marks every day Present and Sundays as Weekly off. Unmarked days count as unpaid.</div></div>`;
 }
@@ -385,7 +385,7 @@ function rSlip(){
   const e=S.emps.find(x=>x.id===SE),c=calc(e),K=Object.keys(DT);
   const row=(a,b)=>`<tr><td>${a}</td><td class="n">${b}</td></tr>`;
   const det=[['Employee',e.name],['Employee code',e.code],['Designation',e.desig],['Date of joining',dojTxt(e)],['PAN',e.pan],['Contact number',e.phone],['Email',e.email],['Bank',e.bank],['Account number',e.acc],['IFSC',e.ifsc],['Monthly salary',inr(e.salary)]];
-  const att=[['Present',c.P],['Half day',c.H],['Half-day leave',c.HL],['Paid leave',c.L],['Weekly off',c.W],['Absent',c.A],['Late check-ins',c.late],['Payable days',c.payable+' of 30',1]];
+  const att=[['Present',c.P],['Half day',c.H],['Half-day leave',c.HL],['Paid leave',c.L],['Weekly off',c.W],['Holiday',c.HO],['Absent',c.A],['Late check-ins',c.late],['Payable days',c.payable+' of 30',1]];
   $('#view').innerHTML=`<div class="card"><div class="row"><label class="wide">Employee<select id="se">${opts()}</select></label><button class="btn" id="spdf">Export slip PDF</button><button class="btn s" id="sall">Export all slips (PDF)</button></div></div>
   <div class="card slipcard"><div class="slip-head"><div><div class="sub">${CO}</div><h2>Salary slip</h2></div><div class="note" style="margin:0">${monthLabel()}</div></div>
   <div><h3 class="ct2" style="margin-top:0">Employee details</h3><div class="meta">${det.map(d=>`<div><span>${d[0]}</span><b>${esc(d[1])||'–'}</b></div>`).join('')}</div></div>
@@ -419,9 +419,9 @@ function slipPdf(list){try{
     fld('Bank',e.bank,cx[0],75,42);fld('Account number',e.acc,cx[1],75,42);fld('IFSC',e.ifsc,cx[2],75,42);fld('Monthly salary','INR '+fN(e.salary),cx[3],75,38);
     // attendance strip
     doc.setFont('courier','bold');doc.setFontSize(7);doc.setTextColor(...C.mute);doc.text('ATTENDANCE',15,91);
-    const cells=[['Present',c.P],['Half day',c.H],['Half-day leave',c.HL],['Paid leave',c.L],['Weekly off',c.W],['Absent',c.A],['Late check-ins',c.late],['Payable days',c.payable+'/30']];
-    const cw=(W-30-7*2.5)/8;
-    cells.forEach(([l,v],k)=>{const x=15+k*(cw+2.5),hi=k===7;
+    const cells=[['Present',c.P],['Half day',c.H],['Half-day leave',c.HL],['Paid leave',c.L],['Weekly off',c.W],['Holiday',c.HO],['Absent',c.A],['Late check-ins',c.late],['Payable days',c.payable+'/30']];
+    const cw=(W-30-8*2.5)/9;
+    cells.forEach(([l,v],k)=>{const x=15+k*(cw+2.5),hi=k===8;
       doc.setFillColor(...(hi?C.acc:C.soft));doc.roundedRect(x,93,cw,15,2,2,'F');
       doc.setFont('courier','normal');doc.setFontSize(5.4);doc.setTextColor(...(hi?[246,227,220]:C.mute));doc.text(cut(l.toUpperCase(),cw-3),x+2,98.5);
       doc.setFont('courier','bold');doc.setFontSize(12);doc.setTextColor(...(hi?[255,255,255]:C.ink));doc.text(String(v),x+2,105.5)});
@@ -491,18 +491,18 @@ function rPay(){
   const kt=k=>R.reduce((s,{c})=>s+c.dby[k],0);
   $('#view').innerHTML=`<div class="kpis"><div class="kpi"><span>Employees</span><b>${R.length}</b></div><div class="kpi"><span>Gross pay</span><b>${inr(T.g)}</b></div><div class="kpi"><span>Travel (${T.k} km)</span><b>${inr(T.x)}</b></div><div class="kpi"><span>Deductions</span><b>${inr(T.d)}</b></div><div class="kpi hi"><span>Net payable</span><b>${inr(T.n)}</b></div></div>
   <div class="card"><div class="toolbar"><button class="btn" id="pdf">Export PDF</button><button class="btn" id="xls">Export Excel</button><button class="btn s" id="csv">Export CSV</button><button class="btn s" id="bak">Export backup</button><label class="btn s">Import backup<input type="file" id="imp" accept=".json"></label></div></div>
-  <div class="card sc pay">${R.length?`<table><thead><tr><th>Employee</th><th class="n">Salary</th><th class="n">P</th><th class="n">H</th><th class="n">HL</th><th class="n">L</th><th class="n">W</th><th class="n">A</th><th class="n">Late</th><th class="n">Payable<br>days</th><th class="n">Gross<br>pay</th><th class="n">Arrear</th><th class="n">Travel<br>km</th><th class="n">Travel</th><th class="n">Absent<br>/half ded.</th>${K.map(k=>`<th class="n">${KL[k]||k}</th>`).join('')}<th class="n">Total<br>ded.</th><th class="n">Net<br>pay</th></tr></thead><tbody>${R.map(({e,c})=>`<tr><td class="name">${esc(e.name)}</td><td class="n">${inr(e.salary)}</td><td class="n">${c.P}</td><td class="n">${c.H}</td><td class="n">${c.HL}</td><td class="n">${c.L}</td><td class="n">${c.W}</td><td class="n">${c.A}</td><td class="n">${c.late||'–'}</td><td class="n">${c.payable}</td><td class="n">${inr(c.gross)}</td><td class="n">${c.arr?inr(c.arr):'–'}</td><td class="n">${c.km||'–'}</td><td class="n">${inr(c.trv)}</td><td class="n">${c.absd?inr(c.absd):'-'}</td>${K.map(k=>`<td class="n">${c.dby[k]?inr(c.dby[k]):'–'}</td>`).join('')}<td class="n">${inr(c.tded)}</td><td class="n netc">${inr(c.net)}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="n">${T.l}</td><td></td><td class="n">${inr(T.g)}</td><td class="n">${inr(T.a)}</td><td class="n">${T.k}</td><td class="n">${inr(T.x)}</td><td class="n">${inr(T.ab)}</td>${K.map(k=>`<td class="n">${inr(kt(k))}</td>`).join('')}<td class="n">${inr(T.d)}</td><td class="n">${inr(T.n)}</td></tr></tfoot></table>`:'<div class="empty">Add employees and attendance to see the summary.</div>'}
-  <div class="note" style="margin-top:12px">P present · H half day · HL half-day leave (paid) · L paid leave · W weekly off · A absent. Employees are listed A to Z.</div></div>
+  <div class="card sc pay">${R.length?`<table><thead><tr><th>Employee</th><th class="n">Salary</th><th class="n">P</th><th class="n">H</th><th class="n">HL</th><th class="n">L</th><th class="n">W</th><th class="n">HO</th><th class="n">A</th><th class="n">Late</th><th class="n">Payable<br>days</th><th class="n">Gross<br>pay</th><th class="n">Arrear</th><th class="n">Travel<br>km</th><th class="n">Travel</th><th class="n">Absent<br>/half ded.</th>${K.map(k=>`<th class="n">${KL[k]||k}</th>`).join('')}<th class="n">Total<br>ded.</th><th class="n">Net<br>pay</th></tr></thead><tbody>${R.map(({e,c})=>`<tr><td class="name">${esc(e.name)}</td><td class="n">${inr(e.salary)}</td><td class="n">${c.P}</td><td class="n">${c.H}</td><td class="n">${c.HL}</td><td class="n">${c.L}</td><td class="n">${c.W}</td><td class="n">${c.HO}</td><td class="n">${c.A}</td><td class="n">${c.late||'–'}</td><td class="n">${c.payable}</td><td class="n">${inr(c.gross)}</td><td class="n">${c.arr?inr(c.arr):'–'}</td><td class="n">${c.km||'–'}</td><td class="n">${inr(c.trv)}</td><td class="n">${c.absd?inr(c.absd):'-'}</td>${K.map(k=>`<td class="n">${c.dby[k]?inr(c.dby[k]):'–'}</td>`).join('')}<td class="n">${inr(c.tded)}</td><td class="n netc">${inr(c.net)}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="n">${T.l}</td><td></td><td class="n">${inr(T.g)}</td><td class="n">${inr(T.a)}</td><td class="n">${T.k}</td><td class="n">${inr(T.x)}</td><td class="n">${inr(T.ab)}</td>${K.map(k=>`<td class="n">${inr(kt(k))}</td>`).join('')}<td class="n">${inr(T.d)}</td><td class="n">${inr(T.n)}</td></tr></tfoot></table>`:'<div class="empty">Add employees and attendance to see the summary.</div>'}
+  <div class="note" style="margin-top:12px">P present · H half day · HL half-day leave (paid) · L paid leave · W weekly off · HO holiday (paid) · A absent. Employees are listed A to Z.</div></div>
   <div class="card"><label>Notes for ${monthLabel()} (included in the PDF)<textarea data-gnote rows="3" placeholder="Type any manual note for this month’s payroll…">${esc(S.notes['ALL|'+M]||'')}</textarea></label>
-  <details class="how"><summary>How pay is calculated</summary><p>Attendance cycle: 16th of the selected month to the 15th of the next month. Salary is always based on 30 days: daily rate = monthly salary ÷ 30. Payable days = 30 − unpaid days, where unpaid days = Absent + ½ Half day + Unmarked days. So a full-attendance month (28, 30 or 31 days) always earns the full salary. Gross pay = daily rate × payable days. Net pay = Gross + arrears + approved travel expenses − deductions. Travel is claimed at ₹${S.rate} per km unless an amount is entered. Half-day leave (HL) is paid, so nothing is deducted for it. Total ded. = Absent/half-day deduction (salary minus gross pay) + the other deductions entered; net pay is not affected by this split. A month with nothing marked pays 0.</p></details></div>`;
-  const hdr=['Employee','Salary','Present','Half day','Half-day leave','Paid leave','Weekly off','Absent','Late check-ins','Payable days','Gross pay','Arrear','Travel km','Travel','Absent/half-day deduction',...K,'Total deductions','Net pay'];
-  const body=R.map(({e,c})=>[e.name,e.salary,c.P,c.H,c.HL,c.L,c.W,c.A,c.late,c.payable,c.gross,c.arr,c.km,c.trv,c.absd,...K.map(k=>c.dby[k]),c.tded,c.net]);
+  <details class="how"><summary>How pay is calculated</summary><p>Attendance cycle: 16th of the selected month to the 15th of the next month. Salary is always based on 30 days: daily rate = monthly salary ÷ 30. Payable days = 30 − unpaid days, where unpaid days = Absent + ½ Half day + Unmarked days. So a full-attendance month (28, 30 or 31 days) always earns the full salary. Gross pay = daily rate × payable days. Net pay = Gross + arrears + approved travel expenses − deductions. Travel is claimed at ₹${S.rate} per km unless an amount is entered. Half-day leave (HL), weekly off (W) and holiday (HO) are paid, so nothing is deducted for them. Total ded. = Absent/half-day deduction (salary minus gross pay) + the other deductions entered; net pay is not affected by this split. A month with nothing marked pays 0.</p></details></div>`;
+  const hdr=['Employee','Salary','Present','Half day','Half-day leave','Paid leave','Weekly off','Holiday','Absent','Late check-ins','Payable days','Gross pay','Arrear','Travel km','Travel','Absent/half-day deduction',...K,'Total deductions','Net pay'];
+  const body=R.map(({e,c})=>[e.name,e.salary,c.P,c.H,c.HL,c.L,c.W,c.HO,c.A,c.late,c.payable,c.gross,c.arr,c.km,c.trv,c.absd,...K.map(k=>c.dby[k]),c.tded,c.net]);
   $('#csv').onclick=()=>{const q=v=>'"'+String(v).replace(/"/g,'""')+'"';
     dl('payroll-'+M+'.csv','text/csv','﻿'+[hdr,...body].map(r=>r.map(q).join(',')).join('\n'))};
   $('#xls').onclick=()=>{
     if(!window.XLSX){toast('Excel library failed to load. Reload the page and try again.');return}
     if(!R.length){toast('Nothing to export yet');return}
-    const tot=['Total','','','','','','','',T.l,'',T.g,T.a,T.k,T.x,T.ab,...K.map(kt),T.d,T.n];
+    const tot=['Total','','','','','','','','',T.l,'',T.g,T.a,T.k,T.x,T.ab,...K.map(kt),T.d,T.n];
     const aoa=[hdr,...body,tot];const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=fit(aoa);
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Payroll');
     dl('payroll-'+M+'.xlsx','application/octet-stream',XLSX.write(wb,{type:'array',bookType:'xlsx'}))};
@@ -519,9 +519,9 @@ function payPdf(R,T,K){try{
   doc.setFont('courier','normal');doc.setFontSize(8);doc.setTextColor(...C.mute);
   doc.text('PAYROLL SUMMARY  |  AMOUNTS IN INR  |  SALARY BASIS 30 DAYS  |  TRAVEL INR '+S.rate+' PER KM',10,20);
   doc.setFont('courier','bold');doc.setFontSize(9);doc.setTextColor(...C.ink);doc.text(monthLabel(),W-10,12,{align:'right'});
-  const head=[['Employee','Salary','P','H','HL','L','W','A','Late','Payable\ndays','Gross\npay','Arrear','Travel\nkm','Travel','Absent/\nhalf ded.',...K.map(k=>(KL[k]||k).replace('<br>','\n')),'Total\nded.','Net\npay']];
-  const body=R.map(({e,c})=>[e.name,fN(e.salary),c.P,c.H,c.HL,c.L,c.W,c.A,c.late,c.payable,fN(c.gross),fN(c.arr),c.km||'-',fN(c.trv),c.absd?fN(c.absd):'-',...K.map(k=>c.dby[k]?fN(c.dby[k]):'-'),fN(c.tded),fN(c.net)]);
-  const foot=[['Total','','','','','','','',T.l,'',fN(T.g),fN(T.a),T.k,fN(T.x),fN(T.ab),...K.map(k=>fN(R.reduce((s,{c})=>s+c.dby[k],0))),fN(T.d),fN(T.n)]];
+  const head=[['Employee','Salary','P','H','HL','L','W','HO','A','Late','Payable\ndays','Gross\npay','Arrear','Travel\nkm','Travel','Absent/\nhalf ded.',...K.map(k=>(KL[k]||k).replace('<br>','\n')),'Total\nded.','Net\npay']];
+  const body=R.map(({e,c})=>[e.name,fN(e.salary),c.P,c.H,c.HL,c.L,c.W,c.HO,c.A,c.late,c.payable,fN(c.gross),fN(c.arr),c.km||'-',fN(c.trv),c.absd?fN(c.absd):'-',...K.map(k=>c.dby[k]?fN(c.dby[k]):'-'),fN(c.tded),fN(c.net)]);
+  const foot=[['Total','','','','','','','','',T.l,'',fN(T.g),fN(T.a),T.k,fN(T.x),fN(T.ab),...K.map(k=>fN(R.reduce((s,{c})=>s+c.dby[k],0))),fN(T.d),fN(T.n)]];
   const last=head[0].length-1;
   doc.autoTable({head,body,foot,startY:34,theme:'plain',margin:{left:10,right:10,bottom:24},showFoot:'lastPage',
     styles:{font:'courier',fontSize:7,cellPadding:{top:2.2,bottom:2.2,left:1.8,right:1.8},textColor:C.ink,lineColor:C.line,lineWidth:{bottom:.2},cellWidth:'wrap',valign:'middle'},
@@ -536,7 +536,7 @@ function payPdf(R,T,K){try{
   if(y>H-46){doc.addPage();y=20}
   if(gn){doc.setFont('courier','bold');doc.setFontSize(8);doc.setTextColor(...C.ink);doc.text('Notes',10,y);doc.setFont('courier','normal');const ls=doc.splitTextToSize(gn,W-20);doc.text(ls,10,y+4.5);y+=7+ls.length*3.6}
   doc.setFont('courier','normal');doc.setFontSize(7);doc.setTextColor(...C.mute);
-  doc.text('Gross pay = Salary / 30 x payable days. Net pay = Gross + Arrear + approved Travel - Deductions. Total ded. = Absent/half-day deduction (Salary - Gross) + other deductions. P present, H half day, HL half-day leave (paid), L paid leave, W weekly off, A absent. Employees listed A to Z.',10,y,{maxWidth:W-20});
+  doc.text('Gross pay = Salary / 30 x payable days. Net pay = Gross + Arrear + approved Travel - Deductions. Total ded. = Absent/half-day deduction (Salary - Gross) + other deductions. P present, H half day, HL half-day leave (paid), L paid leave, W weekly off, HO holiday (paid), A absent. Employees listed A to Z.',10,y,{maxWidth:W-20});
   doc.setDrawColor(...C.ink);doc.setLineWidth(.3);doc.setTextColor(...C.ink);
   doc.line(10,H-22,70,H-22);doc.text('Prepared by',10,H-18);
   doc.line(W-70,H-22,W-10,H-22);doc.text('Approved by',W-70,H-18);
