@@ -156,12 +156,20 @@ details.how p{max-width:90ch;margin:8px 0 0}
 
 @media (max-width:560px){.top{padding:16px}.top h1{font-size:24px}.card{padding:14px}.row>label{flex-basis:calc(50% - 5px)}}
 @media (prefers-reduced-motion:no-preference){.tab,.btn,.c{transition:background-color .15s,border-color .15s,filter .15s}}
+#login{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
+#login[hidden]{display:none}
+#login form{background:var(--surface);border-radius:14px;padding:24px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 22px rgba(43,37,34,.12)}
+#login h2{margin:0;font:700 22px var(--display)}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<div id="ov"></div><nav id="drawer" aria-label="Sections"><div class="dh">Menu</div><div id="tabs"></div></nav>
+<div id="login" hidden><form onsubmit="return false"><h2>Sign in</h2><button class="btn" id="lgo" type="button">Sign in with Google</button><div class="note" id="lerr"></div></form></div>
+<div id="ov"></div><nav id="drawer" aria-label="Sections"><div class="dh">Menu</div><div id="tabs"></div><div class="note" id="sync" style="margin:16px 8px 6px"></div><button class="tab" id="lo" hidden>Sign out</button></nav>
 <div class="shell">
   <header class="top">
     <div class="brandrow"><button class="btn" id="menu" aria-label="Open menu">☰ Menu</button><div><div class="sub">Mind &amp; Work Collaborative Private Limited</div><h1>Attendance &amp; Payroll<i>.</i></h1></div></div>
@@ -179,7 +187,16 @@ let S={emps:[],att:{},exp:[],ded:[],arr:[],notes:{}};
 try{const r=localStorage.getItem('apr1');if(r)S=JSON.parse(r)}catch(e){}
 S.emps=S.emps||[];S.att=S.att||{};S.exp=S.exp||[];S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4;
 S.ded.forEach(x=>{if(x.type==='Loan EMI'||x.type==='Advance')x.type='Advance/EMI'});
-const save=()=>{try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}};
+// Paste your Firebase web app config here (Project settings > Your apps > Web app)
+const FB={apiKey:'AIzaSyA6KyIT7mbQH4OGnIjVdc0bcuW98O7mEBM',authDomain:'payroll-5a1b1.firebaseapp.com',projectId:'payroll-5a1b1',appId:'1:745508040722:web:fdbe005b07ef715f3f68cb'};
+const fbOn=!!window.firebase&&!FB.apiKey.startsWith('YOUR_');
+let auth,db;if(fbOn){firebase.initializeApp(FB);auth=firebase.auth();db=firebase.firestore()}
+let USER=null,tmr;
+const setSync=t=>{const e=document.getElementById('sync');if(e)e.textContent=t};
+const norm=()=>{S.emps=S.emps||[];S.att=S.att||{};S.exp=S.exp||[];S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4};
+const docRef=()=>db.collection('app_state').doc(USER.uid);
+const cloudSave=()=>{if(!fbOn||!USER)return;setSync('Saving…');clearTimeout(tmr);tmr=setTimeout(async()=>{try{await docRef().set({json:JSON.stringify(S),updated:Date.now()});setSync('✓ Synced to cloud')}catch(e){setSync('⚠ Not synced - check connection')}},700)};
+const save=()=>{try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}cloudSave()};
 let M=(()=>{const t=new Date();let y=t.getFullYear(),m=t.getMonth()+1;if(t.getDate()<15){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})(),tab='emp',IMP=null,EDIT=null;
 const TABS=[['emp','👥 Employees'],['att','🗓️ Attendance'],['exp','🚗 Travel expenses'],['arr','➕ Arrears'],['ded','➖ Deductions'],['pay','📊 Payroll summary'],['slip','🧾 Salary slip']];
 const CY=['','P','A','H','HL','L','W'];
@@ -546,5 +563,27 @@ if(document.fullscreenEnabled){fsb.hidden=false;
   fsb.onclick=()=>{try{(document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()).catch(()=>toast('Full screen is not available in this view'))}catch(e){toast('Full screen is not available in this view')}};
   document.addEventListener('fullscreenchange',()=>{fsb.textContent=document.fullscreenElement?'Exit full screen':'Full screen'})}
 $('#mon').onchange=e=>{if(e.target.value){M=e.target.value;IMP=null;render()}};
-render();
+const showLogin=()=>{$('#login').hidden=false};
+async function pull(){
+  try{
+    const d=await docRef().get();
+    if(d.exists&&d.data().json){S=JSON.parse(d.data().json);norm();try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}setSync('✓ Synced to cloud')}
+    else cloudSave(); // first login: upload what is already on this device
+  }catch(e){setSync('⚠ Could not load cloud data')}
+}
+function boot(){
+  if(!fbOn){render();return}
+  $('#lo').hidden=false;
+  auth.onAuthStateChanged(async u=>{
+    if(!u){USER=null;showLogin();return}
+    USER=u;$('#login').hidden=true;await pull();render();
+  });
+}
+$('#lgo').onclick=async()=>{
+  $('#lerr').textContent='';
+  try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}
+  catch(e){$('#lerr').textContent='Sign in failed: '+(e.code||e.message)}
+};
+$('#lo').onclick=async()=>{await auth.signOut();closeMenu()};
+boot();
 </script>
