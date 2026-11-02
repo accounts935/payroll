@@ -169,7 +169,7 @@ details.how p{max-width:90ch;margin:8px 0 0}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<div id="login" hidden><form onsubmit="return false"><h2>Sign in</h2><button class="btn" id="lgo" type="button">Sign in with Google</button><div class="note" id="lerr"></div></form></div>
+<div id="login" hidden><form onsubmit="return false"><h2>Sign in</h2><label>Email<input id="lem" type="email" autocomplete="username"></label><label>Password<input id="lpw" type="password" autocomplete="current-password"></label><button class="btn" id="lpgo" type="button">Sign in</button><div class="note" style="text-align:center;margin:0">or</div><button class="btn s" id="lgo" type="button">Sign in with Google</button><div class="note" id="lerr"></div></form></div>
 <div id="ov"></div><nav id="drawer" aria-label="Sections"><div class="dh">Menu</div><div id="tabs"></div><div class="note" id="sync" style="margin:16px 8px 6px"></div><button class="tab" id="lo" hidden>Sign out</button></nav>
 <div class="shell">
   <header class="top">
@@ -196,8 +196,24 @@ let USER=null,tmr;
 const setSync=t=>{const e=document.getElementById('sync');if(e)e.textContent=t};
 const norm=()=>{S.emps=S.emps||[];S.att=S.att||{};S.exp=S.exp||[];S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4};
 const docRef=()=>db.collection('app_state').doc(USER.uid);
-const cloudSave=()=>{if(!fbOn||!USER)return;setSync('Saving…');clearTimeout(tmr);tmr=setTimeout(async()=>{try{await docRef().set({json:JSON.stringify(S),updated:Date.now()});setSync('✓ Synced to cloud')}catch(e){setSync('⚠ Not synced - check connection')}},700)};
-const save=()=>{try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}cloudSave()};
+const SH=n=>db.collection('shared').doc(n),jstr=JSON.stringify;
+let STAFF=false,base={},lastRoster='',unsub=null;
+// Attendance is stored in its own shared document. Only the days this device changed are merged in, so two people recording at once do not overwrite each other.
+const pushAtt=async()=>{
+  const ch=[...new Set([...Object.keys(S.att),...Object.keys(base)])].filter(k=>jstr(S.att[k])!==jstr(base[k]));
+  if(!ch.length)return;
+  await db.runTransaction(async t=>{
+    const d=await t.get(SH('attendance'));const r=d.exists?JSON.parse(d.data().json||'{}'):{};
+    ch.forEach(k=>{if(S.att[k])r[k]=S.att[k];else delete r[k]});
+    t.set(SH('attendance'),{json:jstr(r),updated:Date.now()});
+    S.att=r;base=JSON.parse(jstr(r));
+  });
+};
+const cloudSave=()=>{if(!fbOn||!USER)return;setSync('Saving…');clearTimeout(tmr);tmr=setTimeout(async()=>{try{
+  if(!STAFF){const{att,...rest}=S;await docRef().set({json:jstr(rest),updated:Date.now()});
+    const ro=jstr(S.emps.map(e=>({id:e.id,name:e.name})));if(ro!==lastRoster){await SH('roster').set({json:ro,updated:Date.now()});lastRoster=ro}}
+  await pushAtt();setSync(STAFF?'✓ Attendance saved':'✓ Synced to cloud')}catch(e){setSync('⚠ Not synced - check connection')}},700)};
+const save=()=>{if(!STAFF){try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}}cloudSave()};
 let M=(()=>{const t=new Date();let y=t.getFullYear(),m=t.getMonth()+1;if(t.getDate()<16){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})(),tab='emp',IMP=null,EDIT=null,DEDIT=null,AEDIT=null;
 const TABS=[['emp','👥 Employees'],['att','🗓️ Attendance'],['exp','🚗 Travel expenses'],['arr','➕ Arrears'],['ded','➖ Deductions'],['pay','📊 Payroll summary'],['slip','🧾 Salary slip']];
 const CY=['','P','A','H','HL','L','W','HO'];
@@ -246,7 +262,7 @@ function calc(e){
 
 function render(){
   $('#mon').value=M;$('#cyc').textContent=monthLabel();
-  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${k===tab?'on':''}" data-t="${k}">${l}</button>`).join('');
+  $('#tabs').innerHTML=(STAFF?TABS.filter(t=>t[0]==='att'):TABS).map(([k,l])=>`<button class="tab ${k===tab?'on':''}" data-t="${k}">${l}</button>`).join('');
   ({emp:rEmp,att:rAtt,exp:rExp,arr:rArr,ded:rDed,pay:rPay,slip:rSlip})[tab]();
 }
 
@@ -587,24 +603,48 @@ $('#mon').onchange=e=>{if(e.target.value){M=e.target.value;IMP=null;render()}};
 const showLogin=()=>{$('#login').hidden=false};
 async function pull(){
   try{
-    const d=await docRef().get();
-    if(d.exists&&d.data().json){S=JSON.parse(d.data().json);norm();try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}setSync('✓ Synced to cloud')}
-    else cloudSave(); // first login: upload what is already on this device
+    let d=null;STAFF=false;
+    try{d=await docRef().get()}catch(e){if(e.code==='permission-denied')STAFF=true;else throw e}
+    const ad=await SH('attendance').get(),ra=ad.exists?JSON.parse(ad.data().json||'{}'):null;
+    if(STAFF){ // attendance-only access: names and attendance, nothing else
+      const ro=await SH('roster').get();
+      S={emps:ro.exists?JSON.parse(ro.data().json||'[]'):[],att:ra||{},exp:[],ded:[],arr:[],notes:{},rate:4};
+      base=JSON.parse(jstr(S.att));tab='att';setSync('✓ Attendance access');return;
+    }
+    if(d.exists&&d.data().json){S=JSON.parse(d.data().json);norm()}
+    S.att=ra||S.att||{};base=ra?JSON.parse(jstr(ra)):{};
+    try{localStorage.setItem('apr1',jstr(S))}catch(e){}
+    cloudSave();
   }catch(e){setSync('⚠ Could not load cloud data')}
 }
+const watchAtt=()=>{if(unsub)unsub();unsub=SH('attendance').onSnapshot(d=>{
+  if(!d.exists||d.metadata.hasPendingWrites)return;
+  const r=JSON.parse(d.data().json||'{}');let ch=false;
+  Object.keys(r).forEach(k=>{if(jstr(S.att[k])===jstr(base[k])&&jstr(S.att[k])!==jstr(r[k])){S.att[k]=r[k];ch=true}});
+  Object.keys(base).forEach(k=>{if(!(k in r)&&jstr(S.att[k])===jstr(base[k])){delete S.att[k];ch=true}});
+  base=JSON.parse(jstr(r));
+  if(ch){if(!STAFF){try{localStorage.setItem('apr1',jstr(S))}catch(e){}}if(tab==='att'&&USER)render()}
+},()=>{})};
 function boot(){
   if(!fbOn){render();return}
   $('#lo').hidden=false;
   auth.onAuthStateChanged(async u=>{
-    if(!u){USER=null;showLogin();return}
-    USER=u;$('#login').hidden=true;await pull();render();
+    if(!u){USER=null;if(unsub)unsub();showLogin();return}
+    USER=u;$('#login').hidden=true;await pull();watchAtt();render();
   });
 }
+$('#lpgo').onclick=async()=>{
+  $('#lerr').textContent='';
+  const e=$('#lem').value.trim(),p=$('#lpw').value;if(!e||!p){$('#lerr').textContent='Enter your email and password.';return}
+  try{await auth.signInWithEmailAndPassword(e,p)}
+  catch(x){$('#lerr').textContent=/invalid-credential|wrong-password|user-not-found|invalid-email/.test(x.code||'')?'Wrong email or password.':'Sign in failed: '+(x.code||x.message)}
+};
+$('#lpw').onkeydown=ev=>{if(ev.key==='Enter')$('#lpgo').click()};
 $('#lgo').onclick=async()=>{
   $('#lerr').textContent='';
   try{await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())}
   catch(e){$('#lerr').textContent='Sign in failed: '+(e.code||e.message)}
 };
-$('#lo').onclick=async()=>{await auth.signOut();closeMenu()};
+$('#lo').onclick=async()=>{await auth.signOut();try{localStorage.removeItem('apr1')}catch(e){}location.reload()};
 boot();
 </script>
