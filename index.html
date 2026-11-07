@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Attendance &amp; Payroll</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%232b2522'/%3E%3Cstop%20offset='1'%20stop-color='%23a8452d'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='url%28%23g%29'/%3E%3Crect%20x='14'%20y='16'%20width='36'%20height='34'%20rx='6'%20fill='%23fff'/%3E%3Crect%20x='14'%20y='16'%20width='36'%20height='11'%20rx='5'%20fill='%23ff9d80'/%3E%3Crect%20x='14'%20y='22'%20width='36'%20height='5'%20fill='%23ff9d80'/%3E%3Crect%20x='22'%20y='10'%20width='4'%20height='11'%20rx='2'%20fill='%23fff'/%3E%3Crect%20x='38'%20y='10'%20width='4'%20height='11'%20rx='2'%20fill='%23fff'/%3E%3Cpath%20d='M23%2040l7%207%2012-13'%20fill='none'%20stroke='%23a8452d'%20stroke-width='5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -197,7 +198,7 @@ const setSync=t=>{const e=document.getElementById('sync');if(e)e.textContent=t};
 const nextM=m=>{let[y,mo]=m.split('-').map(Number);mo++;if(mo>12){mo=1;y++}return y+'-'+String(mo).padStart(2,'0')};
 function shiftKeys(o,n){const r={};Object.keys(o||{}).forEach(k=>{const p=k.split('|');r[p.length===n&&/^\d{4}-\d\d$/.test(p[n-2])?(p[n-2]=nextM(p[n-2]),p.join('|')):k]=o[k]});return r}
 const shiftAtt=o=>shiftKeys(o,3),shiftNotes=o=>shiftKeys(o,2);
-const norm=()=>{S.emps=S.emps||[];S.att=S.att||{};S.exp=S.exp||[];S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4};
+const norm=()=>{S.emps=S.emps||[];S.att=S.att||{};S.exp=S.exp||[];S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.hidAtt=S.hidAtt||{};S.hidPay=S.hidPay||{};S.rate=S.rate||4};
 const docRef=()=>db.collection('app_state').doc(USER.uid);
 const SH=n=>db.collection('shared').doc(n),jstr=JSON.stringify;
 let STAFF=false,base={},lastRoster='',unsub=null;
@@ -214,7 +215,7 @@ const pushAtt=async()=>{
 };
 const cloudSave=()=>{if(!fbOn||!USER)return;setSync('Saving…');clearTimeout(tmr);tmr=setTimeout(async()=>{try{
   if(!STAFF){const{att,...rest}=S;await docRef().set({json:jstr(rest),updated:Date.now()});
-    const ro=jstr(S.emps.map(e=>({id:e.id,name:e.name})));if(ro!==lastRoster){await SH('roster').set({json:ro,updated:Date.now()});lastRoster=ro}}
+    const ro=jstr(S.emps.map(e=>({id:e.id,name:e.name}))),rh=jstr(S.hidAtt||{});if(ro+'|'+rh!==lastRoster){await SH('roster').set({json:ro,hid:rh,updated:Date.now()});lastRoster=ro+'|'+rh}}
   await pushAtt();setSync(STAFF?'✓ Attendance saved':'✓ Synced to cloud')}catch(e){setSync('⚠ Not synced - check connection')}},700)};
 const save=()=>{if(!STAFF){try{localStorage.setItem('apr1',JSON.stringify(S))}catch(e){}}cloudSave()};
 let M=(()=>{const t=new Date();let y=t.getFullYear(),m=t.getMonth()+1;if(t.getDate()>=16){m++;if(m>12){m=1;y++}}return y+'-'+String(m).padStart(2,'0')})(),tab='emp',IMP=null,EDIT=null,DEDIT=null,AEDIT=null;
@@ -295,11 +296,13 @@ function rAtt(){
   const D=dim(),W='SMTWTFS';
   let h='<th>Employee</th>';
   for(let d=1;d<=D;d++)h+=`<th class="${dow(d)==0?'sun':''}">${dayDate(d).getDate()}<br>${W[dow(d)]}<br><span style="font-size:9px;font-weight:400">${dayDate(d).toLocaleDateString('en-IN',{month:'short'})}</span></th>`;
-  const rows=S.emps.map(e=>{const a=S.att[e.id+'|'+M+'|c']||{};let r=`<td class="nm">${esc(e.name)}<br><button class="btn s fill" data-fill="${e.id}">Fill month</button></td>`;
+  const hid=(S.hidAtt&&S.hidAtt[M])||[],gone=S.emps.filter(e=>hid.includes(e.id));
+  const rows=S.emps.filter(e=>!hid.includes(e.id)).map(e=>{const a=S.att[e.id+'|'+M+'|c']||{};let r=`<td class="nm">${esc(e.name)}<br><button class="btn s fill" data-fill="${e.id}">Fill month</button>${STAFF?'':` <button class="btn s fill" data-hide="${e.id}" title="Take off this month's sheet. Stays in the Employees list.">Remove</button>`}</td>`;
     for(let d=1;d<=D;d++){const v=a[d]||'';r+=`<td><button class="c ${v}" data-e="${e.id}" data-d="${d}">${v||'·'}</button></td>`}return`<tr>${r}</tr>`}).join('');
   $('#view').innerHTML=`<div class="card"><div class="leg"><span><b class="c P">P</b>Present</span><span><b class="c A">A</b>Absent</span><span><b class="c H">H</b>Half day</span><span><b class="c HL">HL</b>Half-day leave (paid)</span><span><b class="c L">L</b>Paid leave</span><span><b class="c W">W</b>Weekly off</span><span><b class="c HO">HO</b>Holiday</span></div>
   <div class="sc"><table class="g"><thead><tr>${h}</tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="note">Tap a cell to cycle through the statuses. “Fill month” marks every day Present and Sundays as Weekly off. Unmarked days count as unpaid.</div></div>`;
+  ${gone.length&&!STAFF?`<div class="note">Not on this month's sheet (tap to add back): ${gone.map(e=>`<button class="btn s" data-unhide="${e.id}">+ ${esc(e.name)}</button>`).join(' ')}</div>`:''}
+  <div class="note">Tap a cell to cycle through the statuses. “Fill month” marks every day Present and Sundays as Weekly off. Unmarked days count as unpaid.${STAFF?'':' “Remove” takes an employee off this month’s sheet only; they stay in the Employees list and can be added back.'}</div></div>`;
 }
 
 function impBox(){
@@ -414,7 +417,7 @@ function rSlip(){
   <div class="panel sc"><table class="kv"><thead><tr><th colspan="2">Deductions</th></tr></thead><tbody>${K.map(k=>row(k==='Late check-in'?'Late check-in ('+c.late+')':k,inr(c.dby[k]))).join('')}</tbody><tfoot><tr><td>Total deductions</td><td class="n">${inr(c.ded)}</td></tr></tfoot></table></div></div>
   <div class="net"><span>Net pay</span><b>${inr(c.net)}</b></div></div>`;
   $('#se').value=SE;$('#se').onchange=ev=>{SE=ev.target.value;render()};
-  $('#spdf').onclick=()=>slipPdf([e]);$('#sall').onclick=()=>slipPdf(sorted());
+  $('#spdf').onclick=()=>slipPdf([e]);$('#sall').onclick=()=>slipPdf(payList());
 }
 function slipPdf(list){try{
   const J=window.jspdf;if(!J){toast('PDF library failed to load. Reload the page and try again.');return}
@@ -503,15 +506,20 @@ function rDed(){
   if(ed)$('#canD').onclick=()=>{DEDIT=null;render()};
 }
 
+const hasAtt=e=>Object.keys(S.att[e.id+'|'+M+'|c']||{}).some(d=>d>=1&&d<=dim());
+const payHid=()=>(S.hidPay&&S.hidPay[M])||[];
+const payList=()=>sorted().filter(e=>hasAtt(e)&&!payHid().includes(e.id));
 function rPay(){
-  const R=sorted().map(e=>({e,c:calc(e)}));
+  const R=payList().map(e=>({e,c:calc(e)}));
+  const gone=sorted().filter(e=>hasAtt(e)&&payHid().includes(e.id)),noAtt=sorted().filter(e=>!hasAtt(e));
   const K=Object.keys(DT);
   const T=R.reduce((t,{c})=>({g:t.g+c.gross,x:t.x+c.trv,d:t.d+c.tded,ab:t.ab+c.absd,n:t.n+c.net,a:t.a+c.arr,k:t.k+c.km,l:t.l+c.late}),{g:0,x:0,d:0,ab:0,n:0,a:0,k:0,l:0});
   T.k=Math.round(T.k*100)/100;
   const kt=k=>R.reduce((s,{c})=>s+c.dby[k],0);
   $('#view').innerHTML=`<div class="kpis"><div class="kpi"><span>Employees</span><b>${R.length}</b></div><div class="kpi"><span>Gross pay</span><b>${inr(T.g)}</b></div><div class="kpi"><span>Travel (${T.k} km)</span><b>${inr(T.x)}</b></div><div class="kpi"><span>Deductions</span><b>${inr(T.d)}</b></div><div class="kpi hi"><span>Net payable</span><b>${inr(T.n)}</b></div></div>
   <div class="card"><div class="toolbar"><button class="btn" id="pdf">Export PDF</button><button class="btn" id="xls">Export Excel</button><button class="btn s" id="csv">Export CSV</button><button class="btn s" id="bak">Export backup</button><label class="btn s">Import backup<input type="file" id="imp" accept=".json"></label></div></div>
-  <div class="card sc pay">${R.length?`<table><thead><tr><th>Employee</th><th class="n">Salary</th><th class="n">P</th><th class="n">H</th><th class="n">HL</th><th class="n">L</th><th class="n">W</th><th class="n">HO</th><th class="n">A</th><th class="n">Late</th><th class="n">Payable<br>days</th><th class="n">Gross<br>pay</th><th class="n">Arrear</th><th class="n">Travel<br>km</th><th class="n">Travel</th><th class="n">Absent<br>/half ded.</th>${K.map(k=>`<th class="n">${KL[k]||k}</th>`).join('')}<th class="n">Total<br>ded.</th><th class="n">Net<br>pay</th></tr></thead><tbody>${R.map(({e,c})=>`<tr><td class="name">${esc(e.name)}</td><td class="n">${inr(e.salary)}</td><td class="n">${c.P}</td><td class="n">${c.H}</td><td class="n">${c.HL}</td><td class="n">${c.L}</td><td class="n">${c.W}</td><td class="n">${c.HO}</td><td class="n">${c.A}</td><td class="n">${c.late||'–'}</td><td class="n">${c.payable}</td><td class="n">${inr(c.gross)}</td><td class="n">${c.arr?inr(c.arr):'–'}</td><td class="n">${c.km||'–'}</td><td class="n">${inr(c.trv)}</td><td class="n">${c.absd?inr(c.absd):'-'}</td>${K.map(k=>`<td class="n">${c.dby[k]?inr(c.dby[k]):'–'}</td>`).join('')}<td class="n">${inr(c.tded)}</td><td class="n netc">${inr(c.net)}</td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="n">${T.l}</td><td></td><td class="n">${inr(T.g)}</td><td class="n">${inr(T.a)}</td><td class="n">${T.k}</td><td class="n">${inr(T.x)}</td><td class="n">${inr(T.ab)}</td>${K.map(k=>`<td class="n">${inr(kt(k))}</td>`).join('')}<td class="n">${inr(T.d)}</td><td class="n">${inr(T.n)}</td></tr></tfoot></table>`:'<div class="empty">Add employees and attendance to see the summary.</div>'}
+  ${gone.length||noAtt.length?`<div class="card"><div class="note" style="margin:0">${gone.length?`Removed from this summary (tap to add back): ${gone.map(e=>`<button class="btn s" data-punhide="${e.id}">+ ${esc(e.name)}</button>`).join(' ')}<br>`:''}${noAtt.length?`Not shown, no attendance marked this month: ${noAtt.map(e=>esc(e.name)).join(', ')}`:''}</div></div>`:''}
+  <div class="card sc pay">${R.length?`<table><thead><tr><th>Employee</th><th class="n">Salary</th><th class="n">P</th><th class="n">H</th><th class="n">HL</th><th class="n">L</th><th class="n">W</th><th class="n">HO</th><th class="n">A</th><th class="n">Late</th><th class="n">Payable<br>days</th><th class="n">Gross<br>pay</th><th class="n">Arrear</th><th class="n">Travel<br>km</th><th class="n">Travel</th><th class="n">Absent<br>/half ded.</th>${K.map(k=>`<th class="n">${KL[k]||k}</th>`).join('')}<th class="n">Total<br>ded.</th><th class="n">Net<br>pay</th><th></th></tr></thead><tbody>${R.map(({e,c})=>`<tr><td class="name">${esc(e.name)}</td><td class="n">${inr(e.salary)}</td><td class="n">${c.P}</td><td class="n">${c.H}</td><td class="n">${c.HL}</td><td class="n">${c.L}</td><td class="n">${c.W}</td><td class="n">${c.HO}</td><td class="n">${c.A}</td><td class="n">${c.late||'–'}</td><td class="n">${c.payable}</td><td class="n">${inr(c.gross)}</td><td class="n">${c.arr?inr(c.arr):'–'}</td><td class="n">${c.km||'–'}</td><td class="n">${inr(c.trv)}</td><td class="n">${c.absd?inr(c.absd):'-'}</td>${K.map(k=>`<td class="n">${c.dby[k]?inr(c.dby[k]):'–'}</td>`).join('')}<td class="n">${inr(c.tded)}</td><td class="n netc">${inr(c.net)}</td><td><button class="btn s" data-phide="${e.id}" title="Take off this month's summary. Stays in the Employees list.">Remove</button></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="n">${T.l}</td><td></td><td class="n">${inr(T.g)}</td><td class="n">${inr(T.a)}</td><td class="n">${T.k}</td><td class="n">${inr(T.x)}</td><td class="n">${inr(T.ab)}</td>${K.map(k=>`<td class="n">${inr(kt(k))}</td>`).join('')}<td class="n">${inr(T.d)}</td><td class="n">${inr(T.n)}</td><td></td></tr></tfoot></table>`:'<div class="empty">Add employees and attendance to see the summary.</div>'}
   <div class="note" style="margin-top:12px">P present · H half day · HL half-day leave (paid) · L paid leave · W weekly off · HO holiday (paid) · A absent. Employees are listed A to Z.</div></div>
   <div class="card"><label>Notes for ${monthLabel()} (included in the PDF)<textarea data-gnote rows="3" placeholder="Type any manual note for this month’s payroll…">${esc(S.notes['ALL|'+M]||'')}</textarea></label>
   <details class="how"><summary>How pay is calculated</summary><p>Attendance cycle: 16th of the previous month to the 15th of the selected month. Salary is always based on 30 days: daily rate = monthly salary ÷ 30. Payable days = 30 − unpaid days, where unpaid days = Absent + ½ Half day + Unmarked days. So a full-attendance month (28, 30 or 31 days) always earns the full salary. Gross pay = daily rate × payable days. Net pay = Gross + arrears + approved travel expenses − deductions. Travel is claimed at ₹${S.rate} per km unless an amount is entered. Half-day leave (HL), weekly off (W) and holiday (HO) are paid, so nothing is deducted for them. Total ded. = Absent/half-day deduction (salary minus gross pay) + the other deductions entered; net pay is not affected by this split. A month with nothing marked pays 0.</p></details></div>`;
@@ -528,7 +536,7 @@ function rPay(){
     dl('payroll-'+M+'.xlsx','application/octet-stream',XLSX.write(wb,{type:'array',bookType:'xlsx'}))};
   $('#pdf').onclick=()=>payPdf(R,T,K);
   $('#bak').onclick=()=>dl('attendance-backup.json','application/json',JSON.stringify(S));
-  $('#imp').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.emps&&d.att&&d.exp){S=d;if(!S.cyc2){S.att=shiftAtt(S.att);S.notes=shiftNotes(S.notes);S.cyc2=1}S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4;save();render();toast('Backup imported')}else toast('That file is not a payroll backup')}catch(e){toast('That file is not a payroll backup')}};r.readAsText(f);ev.target.value=''};
+  $('#imp').onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.emps&&d.att&&d.exp){S=d;if(!S.cyc2){S.att=shiftAtt(S.att);S.notes=shiftNotes(S.notes);S.cyc2=1}S.hidAtt=S.hidAtt||{};S.hidPay=S.hidPay||{};S.ded=S.ded||[];S.arr=S.arr||[];S.notes=S.notes||{};S.rate=S.rate||4;save();render();toast('Backup imported')}else toast('That file is not a payroll backup')}catch(e){toast('That file is not a payroll backup')}};r.readAsText(f);ev.target.value=''};
 }
 function payPdf(R,T,K){try{
   const J=window.jspdf;if(!J){toast('PDF library failed to load. Reload the page and try again.');return}
@@ -586,6 +594,10 @@ document.addEventListener('click',ev=>{
     const id=t.dataset.del;S.emps=S.emps.filter(e=>e.id!==id);S.exp=S.exp.filter(x=>x.emp!==id);S.ded=S.ded.filter(x=>x.emp!==id);S.arr=S.arr.filter(x=>x.emp!==id);Object.keys(S.att).forEach(k=>{if(k.startsWith(id+'|'))delete S.att[k]});save();return render()}
   if(t.dataset.e){const k=t.dataset.e+'|'+M+'|c',a=S.att[k]=S.att[k]||{},d=t.dataset.d,v=CY[(CY.indexOf(a[d]||'')+1)%CY.length];
     if(v)a[d]=v;else delete a[d];save();t.className='c '+v;t.textContent=v||'·';return}
+  if(t.dataset.phide){S.hidPay=S.hidPay||{};const h=S.hidPay[M]=S.hidPay[M]||[];if(!h.includes(t.dataset.phide))h.push(t.dataset.phide);save();return render()}
+  if(t.dataset.punhide){S.hidPay=S.hidPay||{};S.hidPay[M]=(S.hidPay[M]||[]).filter(x=>x!==t.dataset.punhide);save();return render()}
+  if(t.dataset.hide){S.hidAtt=S.hidAtt||{};const h=S.hidAtt[M]=S.hidAtt[M]||[];if(!h.includes(t.dataset.hide))h.push(t.dataset.hide);save();return render()}
+  if(t.dataset.unhide){S.hidAtt=S.hidAtt||{};S.hidAtt[M]=(S.hidAtt[M]||[]).filter(x=>x!==t.dataset.unhide);save();return render()}
   if(t.dataset.fill){const a={};for(let d=1;d<=dim();d++)a[d]=dow(d)==0?'W':'P';S.att[t.dataset.fill+'|'+M+'|c']=a;save();return render()}
   if(t.dataset.st){const x=S.exp.find(x=>x.id===t.dataset.st);x.status=x.status==='Approved'?'Pending':'Approved';save();return render()}
   if(t.dataset.dx){S.exp=S.exp.filter(x=>x.id!==t.dataset.dx);save();return render()}
@@ -617,7 +629,7 @@ async function pull(){
     }
     if(STAFF){ // attendance-only access: names and attendance, nothing else
       const ro=await SH('roster').get();
-      S={emps:ro.exists?JSON.parse(ro.data().json||'[]'):[],att:ra||{},exp:[],ded:[],arr:[],notes:{},rate:4};
+      const rd=ro.exists?ro.data():{};S={emps:JSON.parse(rd.json||'[]'),hidAtt:JSON.parse(rd.hid||'{}'),att:ra||{},exp:[],ded:[],arr:[],notes:{},rate:4};
       base=JSON.parse(jstr(S.att));tab='att';setSync('✓ Attendance access');return;
     }
     if(d.exists&&d.data().json){S=JSON.parse(d.data().json);norm()}
