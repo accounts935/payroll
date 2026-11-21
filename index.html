@@ -1706,7 +1706,10 @@ function payPdf(R,T,K){try{
       if(i===last&&h.section!=='head'){h.cell.styles.fontStyle='bold';if(h.section==='body')h.cell.styles.fillColor=C.accSoft}}});
   let y=doc.lastAutoTable.finalY+7;const gn=(S.notes['ALL|'+M]||'').trim();
   if(y>H-46){doc.addPage();y=20}
-  if(gn){doc.setFont('courier','bold');doc.setFontSize(8);doc.setTextColor(...C.ink);doc.text('Notes',10,y);doc.setFont('courier','normal');const ls=doc.splitTextToSize(gn,W-20);doc.text(ls,10,y+4.5);y+=7+ls.length*3.6}
+  if(gn){doc.setFont('courier','bold');doc.setFontSize(8);doc.setTextColor(...C.ink);doc.text('Notes',10,y);doc.setFont('courier','normal');y+=4.5;
+    /* Keep every line exactly as typed on the website: honour line breaks and blank lines, wrap only long lines, and swap characters the PDF font cannot draw (₹ -> Rs.) so lines are no longer cut off */
+    const pdfSafe=t=>String(t).replace(/\u20B9/g,'Rs.').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/[\u2192\u21D2]/g,'=>').replace(/\u2022/g,'*').replace(/\u2026/g,'...').replace(/\t/g,'  ').replace(/[^\x20-\x7E\xA0-\xFF]/g,'?');
+    gn.split(/\r?\n/).forEach(raw=>{const ls=doc.splitTextToSize(pdfSafe(raw),W-20);ls.forEach(l=>{if(y>H-30){doc.addPage();y=20;doc.setFont('courier','normal');doc.setFontSize(8);doc.setTextColor(...C.ink)}doc.text(l,10,y);y+=3.6})});y+=3.4}
   doc.setFont('courier','normal');doc.setFontSize(7);doc.setTextColor(...C.mute);
   doc.text('Gross pay = Salary / 30 x payable days. Net pay = Gross + Arrear + approved Travel - Deductions. Total ded. = Absent/half-day deduction (Salary - Gross) + other deductions. P present, H half day, HL half-day leave (paid), L paid leave, W weekly off, HO holiday (paid), A absent. Employees listed A to Z.',10,y,{maxWidth:W-20});
   doc.setDrawColor(...C.ink);doc.setLineWidth(.3);doc.setTextColor(...C.ink);
