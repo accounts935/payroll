@@ -1563,7 +1563,7 @@ function rSlip(){
   <div><h3 class="ct2" style="margin-top:0">Employee details</h3><div class="meta">${det.map(d=>`<div><span>${d[0]}</span><b>${esc(d[1])||'–'}</b></div>`).join('')}</div></div>
   <div><h3 class="ct2" style="margin-top:0">Attendance</h3><div class="strip">${att.map(a=>`<div class="chip${a[2]?' hi':''}"><span>${a[0]}</span><b>${a[1]}</b></div>`).join('')}</div></div>
   <div class="panels">
-  <div class="panel sc"><table class="kv"><thead><tr><th colspan="2">Earnings</th></tr></thead><tbody>${row('Salary earned',inr(c.gross))}${row('Arrear',inr(c.arr))}${row('Travel reimbursement'+(c.km?' ('+c.km+' km at ₹'+S.rate+')':''),inr(c.trv))}</tbody><tfoot><tr><td>Total earnings</td><td class="n">${inr(c.gross+c.arr+c.trv)}</td></tr></tfoot></table></div>
+  <div class="panel sc"><table class="kv"><thead><tr><th colspan="2">Earnings</th></tr></thead><tbody>${row('Salary earned',inr(c.gross))}${row('Arrear',inr(c.arr))}${row('Travel reimbursement'+(c.km?' ('+c.km+' km at ₹'+S.rate+')':''),inr(c.trv))}${row('&nbsp;','&nbsp;')}</tbody><tfoot><tr><td>Total earnings</td><td class="n">${inr(c.gross+c.arr+c.trv)}</td></tr></tfoot></table></div>
   <div class="panel sc"><table class="kv"><thead><tr><th colspan="2">Deductions</th></tr></thead><tbody>${K.map(k=>row(k==='Late check-in'?'Late check-in ('+c.late+')':k,inr(c.dby[k]))).join('')}</tbody><tfoot><tr><td>Total deductions</td><td class="n">${inr(c.ded)}</td></tr></tfoot></table></div></div>
   <div class="net"><span>Net pay</span><b>${inr(c.net)}</b></div></div>`;
   $('#se').value=SE;$('#se').onchange=ev=>{SE=ev.target.value;render()};
@@ -1598,7 +1598,7 @@ function slipPdf(list){try{
       doc.setFont('courier','normal');doc.setFontSize(5.4);doc.setTextColor(...(hi?[246,227,220]:C.mute));doc.text(cut(l.toUpperCase(),cw-3),x+2,98.5);
       doc.setFont('courier','bold');doc.setFontSize(12);doc.setTextColor(...(hi?[255,255,255]:C.ink));doc.text(String(v),x+2,105.5)});
     // earnings and deductions side by side
-    doc.autoTable({startY:116,head:[['Earnings','INR']],body:[['Salary earned',fN(c.gross)],['Arrear',fN(c.arr)],['Travel'+(c.km?' ('+c.km+' km at INR '+S.rate+')':''),fN(c.trv)]],foot:[['Total earnings',fN(c.gross+c.arr+c.trv)]],theme:'plain',styles:st,headStyles:th,footStyles:ft,margin:{left:15,right:W/2+3},columnStyles:cs2});
+    doc.autoTable({startY:116,head:[['Earnings','INR']],body:[['Salary earned',fN(c.gross)],['Arrear',fN(c.arr)],['Travel'+(c.km?' ('+c.km+' km at INR '+S.rate+')':''),fN(c.trv)],['','']],foot:[['Total earnings',fN(c.gross+c.arr+c.trv)]],theme:'plain',styles:st,headStyles:th,footStyles:ft,margin:{left:15,right:W/2+3},columnStyles:cs2});
     const y1=doc.lastAutoTable.finalY;
     doc.autoTable({startY:116,head:[['Deductions','INR']],body:K.map(k=>[k==='Late check-in'?'Late check-in ('+c.late+')':k,fN(c.dby[k])]),foot:[['Total deductions',fN(c.ded)]],theme:'plain',styles:st,headStyles:th,footStyles:ft,margin:{left:W/2+3,right:15},columnStyles:cs2});
     const y3=Math.max(y1,doc.lastAutoTable.finalY)+12;
